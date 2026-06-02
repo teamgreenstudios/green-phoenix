@@ -40,6 +40,7 @@ export function TodoEditDialog({
   const [notes, setNotes] = useState(todo.notes ?? "");
   const [due, setDue] = useState(todo.due_date ?? "");
   const [priority, setPriority] = useState<TodoPriority>(todo.priority);
+  const [tags, setTags] = useState((todo.tags ?? []).join(", "));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function TodoEditDialog({
     setNotes(todo.notes ?? "");
     setDue(todo.due_date ?? "");
     setPriority(todo.priority);
+    setTags((todo.tags ?? []).join(", "));
   }, [open, todo]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -62,6 +64,10 @@ export function TodoEditDialog({
       notes,
       due_date: due || null,
       priority,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     });
     setSaving(false);
     if (res.error || !res.data) {
@@ -135,6 +141,18 @@ export function TodoEditDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="todo-tags">Tags</Label>
+            <Input
+              id="todo-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="bug, idea, blocked"
+            />
+            <p className="text-xs text-muted-foreground">
+              Comma-separated. Used for filtering.
+            </p>
           </div>
           <DialogFooter>
             <Button

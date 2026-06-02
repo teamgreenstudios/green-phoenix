@@ -146,6 +146,18 @@ export function TodoItem({
             )}
           </div>
         )}
+        {todo.tags?.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {todo.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center">

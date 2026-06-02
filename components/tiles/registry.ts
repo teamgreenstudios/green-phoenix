@@ -10,6 +10,9 @@ import { mediaDef } from "./defs/media";
 import { weatherDef } from "./defs/weather";
 import { pomodoroDef } from "./defs/pomodoro";
 import { countdownDef } from "./defs/countdown";
+import { todayDef } from "./defs/today";
+import { heatmapDef } from "./defs/heatmap";
+import { habitsDef } from "./defs/habits";
 
 /**
  * The tile registry (spec §6). Adding a new tile type = write a def and add it
@@ -26,6 +29,9 @@ export const TILE_DEFS: TileDefinition[] = [
   weatherDef,
   pomodoroDef,
   countdownDef,
+  todayDef,
+  heatmapDef,
+  habitsDef,
 ];
 
 export const TILE_REGISTRY: Record<string, TileDefinition> = Object.fromEntries(

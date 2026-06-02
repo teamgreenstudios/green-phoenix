@@ -41,9 +41,29 @@ export interface Todo {
   done: boolean;
   due_date: string | null; // ISO date (YYYY-MM-DD)
   priority: TodoPriority;
+  tags: string[];
+  completed_at: string | null; // set when done flips true (Phase 4)
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+// Habit tracker (Phase 4).
+export interface Habit {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface HabitEntry {
+  id: string;
+  user_id: string;
+  habit_id: string;
+  day: string; // ISO date (YYYY-MM-DD)
+  created_at: string;
 }
 
 export type TileSize = "S" | "M" | "L";

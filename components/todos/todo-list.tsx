@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { Todo } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TodoItem } from "./todo-item";
@@ -24,8 +25,13 @@ export function TodoList({
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
 
-  const visible = filter === "open" ? todos.filter((t) => !t.done) : todos;
+  const byStatus = filter === "open" ? todos.filter((t) => !t.done) : todos;
+  const allTags = [...new Set(todos.flatMap((t) => t.tags ?? []))].sort();
+  const visible = tagFilter
+    ? byStatus.filter((t) => (t.tags ?? []).includes(tagFilter))
+    : byStatus;
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -89,6 +95,26 @@ export function TodoList({
           Add
         </Button>
       </form>
+
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setTagFilter((cur) => (cur === tag ? null : tag))}
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs transition-colors",
+                tagFilter === tag
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground",
+              )}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">

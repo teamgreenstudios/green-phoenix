@@ -60,12 +60,31 @@ export async function toggleTodo(
 ): Promise<TodoActionResult> {
   try {
     const { supabase } = await requireUser();
-    const { error } = await supabase.from("todos").update({ done }).eq("id", id);
+    // Stamp completed_at on completion (powers the productivity heatmap); clear on un-done.
+    const { error } = await supabase
+      .from("todos")
+      .update({ done, completed_at: done ? new Date().toISOString() : null })
+      .eq("id", id);
     if (error) return { error: error.message };
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to update todo." };
   }
+}
+
+/** Trim, drop empties, and de-duplicate a tag list. */
+function normalizeTags(tags?: string[]): string[] {
+  if (!Array.isArray(tags)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags) {
+    const t = String(raw).trim().replace(/^#/, "");
+    if (t && !seen.has(t.toLowerCase())) {
+      seen.add(t.toLowerCase());
+      out.push(t);
+    }
+  }
+  return out;
 }
 
 export async function updateTodo(
@@ -75,6 +94,7 @@ export async function updateTodo(
     notes?: string | null;
     due_date?: string | null;
     priority?: number;
+    tags?: string[];
   },
 ): Promise<TodoActionResult<Todo>> {
   const title = input.title.trim();
@@ -88,6 +108,7 @@ export async function updateTodo(
         notes: (input.notes ?? "").trim() || null,
         due_date: input.due_date || null,
         priority: isTodoPriority(input.priority) ? input.priority : 0,
+        tags: normalizeTags(input.tags),
       })
       .eq("id", id)
       .select("*")
