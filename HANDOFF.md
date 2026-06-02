@@ -14,12 +14,13 @@ Continuity notes for picking this up in a new session. Read alongside:
   (bookmarks), `0fb231b` + `0d77b10` (notes + GFM), `c2fd206` (steam/media stubs + per-tile refresh),
   `dd9bd78` (config-form polish + light-mode pass). No new migration. `npm run build` is green.
 - **Phase 3 (drag-and-drop + realtime) is complete and merged to `master`.** Commits: `c3b493b`
-  (dnd-kit tile reorder), `77adc1e` (Supabase realtime wiring). `npm run build` is green. Cross-app
-  **SSO was intentionally skipped** (spec §11). Realtime is **inert until replication is enabled** on
-  `todos`/`projects` — see `BACKLOG.md`.
+  (dnd-kit tile reorder), `77adc1e` (Supabase realtime wiring), `564c008` (realtime auth fix).
+  `npm run build` is green. Cross-app **SSO was intentionally skipped** (spec §11). Realtime is
+  **live and verified** — replication is enabled on `todos`/`projects`, and the hook authenticates
+  the socket (`setAuth`) so RLS `postgres_changes` include row data.
 - **DB migrations `0001`–`0003` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
-- **Owner action items now live in `BACKLOG.md`:** enable Realtime replication, the deferred M4
-  Vercel deploy, and the optional DB-level email-allowlist hardening.
+- **Owner action items live in `BACKLOG.md`:** the deferred M4 Vercel deploy and the optional
+  DB-level email-allowlist hardening. (Realtime replication is now **enabled** — done.)
 - **M4 (Vercel deploy) is intentionally deferred** — no code work, pure infra (push to GitHub →
   import to Vercel → set the 3 env vars → add prod domain to Supabase Auth URL config).
 

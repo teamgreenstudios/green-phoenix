@@ -6,24 +6,16 @@ just the things waiting on you. Nothing here blocks further code work.
 
 ---
 
-## 1. Enable Supabase Realtime replication — unblocks Phase 3 live updates
+## 1. ~~Enable Supabase Realtime replication~~ — ✅ DONE (2026-06-02)
 
-The realtime wiring (Phase 3 M2) is built but **inert until replication is on** (the
-`supabase_realtime` publication is currently empty). The app runs fine without it; live
-sync just won't fire.
-
-- **Dashboard:** Database → Publications → `supabase_realtime` → enable **`todos`** and **`projects`**.
-- **or SQL:**
-  ```sql
-  alter publication supabase_realtime add table public.todos, public.projects;
-  ```
-- No `REPLICA IDENTITY` change needed (delete events carry the `id` primary key).
-- `tiles` is **not** wired for realtime — leave it off.
-- **Verify:** open the app in two tabs as the same user — toggling a todo or editing a
-  project's status in one tab updates the other without a refresh.
+`todos` + `projects` are in the `supabase_realtime` publication and live sync was verified
+end-to-end (direct-DB INSERT/UPDATE/DELETE merge into the open page with no reload). This
+also surfaced + fixed a realtime-auth bug (the socket now calls `setAuth` so RLS-protected
+`postgres_changes` include row data). To undo:
+`alter publication supabase_realtime drop table public.todos, public.projects;`
 
 > Note: the dashboard `project_status` **tile** reads server-seeded data and intentionally
-> stays static. Todos tiles, `/todos`, and `/projects` do update live.
+> stays static. The todos tiles, `/todos`, and `/projects` update live.
 
 ---
 

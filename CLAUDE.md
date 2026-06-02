@@ -50,10 +50,11 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   mode; `reorderTiles` action writes `sort_order`; resize stays on the S/M/L buttons). **Supabase
   realtime** wiring — reusable `lib/hooks/use-realtime.ts`; `TodoList` merges live todo changes by
   id; `components/projects/realtime-projects.tsx` does `router.refresh()` on `/projects` +
-  `/projects/[id]`. Realtime is **inert until the owner enables replication** on `todos`/`projects`
-  (see `BACKLOG.md`). Cross-app **SSO intentionally skipped** (spec §11, out of scope). New deps:
+  `/projects/[id]`. Replication is **enabled** on `todos`/`projects` and realtime is **verified
+  end-to-end** (the hook calls `supabase.realtime.setAuth` so RLS `postgres_changes` include row
+  data — fix `564c008`). Cross-app **SSO intentionally skipped** (spec §11, out of scope). New deps:
   `@dnd-kit/{core,sortable,utilities}`.
-- Next: **owner infra only** — M4 Vercel deploy + enable Realtime replication (both in `BACKLOG.md`).
+- Next: **owner infra only** — M4 Vercel deploy (see `BACKLOG.md`).
   No further code phases are planned; do **not** start the SSO exploration without the user's go-ahead.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
