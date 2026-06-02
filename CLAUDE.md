@@ -32,8 +32,12 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
 - **M2 (done):** Todos — reusable client `components/todos/TodoList` (add/toggle/edit/delete/reorder,
   due date, priority) over Server Actions in `app/(app)/todos/actions.ts`. Surfaces: global `/todos`
   and per-project `/projects/[id]` detail page. Project card titles link to the detail page.
-- Next: M3 tile system + launcher/todos/project_status renderers → M4 deploy.
-  Do **not** build Phase 2/3 features.
+- **M3 (done):** Tile system — registry (`components/tiles/registry.ts`) + per-type defs in
+  `components/tiles/defs/{launcher,todos,project-status}.tsx` (renderer + config form + meta);
+  `TileBoard` (client edit-mode: add/reorder/resize S-M-L/hide/edit/delete) + `TileCard`; tile
+  Server Actions in `app/(app)/tiles/actions.ts`. Dashboard `/` is the responsive tile grid.
+  Edit-mode toggle lives on the dashboard (not the global header) since it's dashboard-specific.
+- Next: M4 deploy (Vercel). Do **not** build Phase 2/3 features.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
 `npm run build` and the preview MCP both pass against the M0 code.

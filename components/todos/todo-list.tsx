@@ -13,14 +13,18 @@ export function TodoList({
   scope,
   projectId = null,
   initialTodos,
+  filter = "all",
 }: {
   scope: "global" | "project";
   projectId?: string | null;
   initialTodos: Todo[];
+  filter?: "open" | "all";
 }) {
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
+
+  const visible = filter === "open" ? todos.filter((t) => !t.done) : todos;
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -67,19 +71,21 @@ export function TodoList({
         </Button>
       </form>
 
-      {todos.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          No todos yet. Add one above.
+          {todos.length === 0
+            ? "No todos yet. Add one above."
+            : "All done — nothing open."}
         </p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
-          {todos.map((todo, i) => (
+          {visible.map((todo, i) => (
             <TodoItem
               key={todo.id}
               todo={todo}
               projectId={projectId}
               isFirst={i === 0}
-              isLast={i === todos.length - 1}
+              isLast={i === visible.length - 1}
               onChanged={onChanged}
               onDeleted={onDeleted}
               onMoved={onMoved}
