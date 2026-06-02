@@ -27,16 +27,33 @@ export function useRealtimeTable(
   useEffect(() => {
     if (!enabled) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel(`rt:${table}:${channelId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table },
-        (payload) => cb.current(payload),
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let active = true;
+
+    (async () => {
+      // RLS-protected postgres_changes only include row data when the realtime
+      // socket is authenticated with the user's access token; otherwise the
+      // server delivers an empty record. Set it before subscribing.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      }
+      if (!active) return;
+      channel = supabase
+        .channel(`rt:${table}:${channelId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table },
+          (payload) => cb.current(payload),
+        )
+        .subscribe();
+    })();
+
     return () => {
-      void supabase.removeChannel(channel);
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [table, channelId, enabled]);
 }
