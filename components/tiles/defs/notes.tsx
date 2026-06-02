@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { Check, Pencil, StickyNote, X } from "lucide-react";
 import { toast } from "sonner";
@@ -34,7 +35,13 @@ const PROSE =
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 " +
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 " +
   "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground " +
-  "[&_hr]:my-3 [&_hr]:border-border";
+  "[&_hr]:my-3 [&_hr]:border-border " +
+  // GFM: tables, strikethrough, task lists.
+  "[&_table]:my-2 [&_table]:block [&_table]:w-fit [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-xs " +
+  "[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold " +
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 " +
+  "[&_del]:text-muted-foreground [&_del]:line-through " +
+  "[&_li:has(>input)]:list-none [&_li:has(>input)]:-ml-5 [&_input]:mr-1.5 [&_input]:align-middle";
 
 function NotesRenderer({ id, config, onConfigSaved }: TileRendererProps) {
   const { markdown } = asConfig(config);
@@ -105,6 +112,7 @@ function NotesRenderer({ id, config, onConfigSaved }: TileRendererProps) {
       {markdown.trim() ? (
         <div className={PROSE}>
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}
             components={{
               a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
