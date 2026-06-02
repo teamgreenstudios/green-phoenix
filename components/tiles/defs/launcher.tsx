@@ -1,15 +1,13 @@
 "use client";
 
-import { ExternalLink, Plus, Rocket, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { LauncherConfig, LauncherItem } from "@/lib/types";
+import { ExternalLink, Rocket } from "lucide-react";
+import type { LauncherConfig } from "@/lib/types";
 import type {
   TileConfigFormProps,
   TileDefinition,
   TileRendererProps,
 } from "../types";
+import { LinkItemsEditor } from "../config-fields";
 
 function asConfig(config: unknown): LauncherConfig {
   const c = (config ?? {}) as Partial<LauncherConfig>;
@@ -45,48 +43,13 @@ function LauncherRenderer({ config }: TileRendererProps) {
 
 function LauncherConfigForm({ value, onChange }: TileConfigFormProps) {
   const { items } = asConfig(value);
-  const set = (next: LauncherItem[]) => onChange({ items: next });
-  const update = (i: number, patch: Partial<LauncherItem>) =>
-    set(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-
   return (
-    <div className="grid gap-2">
-      <Label>Links</Label>
-      {items.map((item, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Input
-            placeholder="Label"
-            value={item.label}
-            onChange={(e) => update(i, { label: e.target.value })}
-            aria-label={`Link ${i + 1} label`}
-          />
-          <Input
-            placeholder="https://…"
-            value={item.url}
-            onChange={(e) => update(i, { url: e.target.value })}
-            aria-label={`Link ${i + 1} URL`}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Remove link"
-            onClick={() => set(items.filter((_, idx) => idx !== i))}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => set([...items, { label: "", url: "" }])}
-      >
-        <Plus className="size-4" />
-        Add link
-      </Button>
-    </div>
+    <LinkItemsEditor
+      items={items}
+      onChange={(next) => onChange({ items: next })}
+      label="Links"
+      addLabel="Add link"
+    />
   );
 }
 

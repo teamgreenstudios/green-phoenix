@@ -90,3 +90,11 @@ export interface TodosTileConfig {
 export interface ProjectStatusConfig {
   project_id?: string; // omit => all projects
 }
+
+export interface BookmarkItem {
+  label: string;
+  url: string;
+}
+export interface BookmarksConfig {
+  items: BookmarkItem[];
+}
