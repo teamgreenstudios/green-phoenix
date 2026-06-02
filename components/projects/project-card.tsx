@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   ChevronDown,
   ChevronUp,
@@ -91,7 +92,14 @@ export function ProjectCard({
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium leading-none">{project.name}</h3>
+            <h3 className="font-medium leading-none">
+              <Link
+                href={`/projects/${project.id}`}
+                className="hover:underline"
+              >
+                {project.name}
+              </Link>
+            </h3>
             <StatusBadge status={project.status} />
           </div>
           {project.description && (

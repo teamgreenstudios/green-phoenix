@@ -29,7 +29,10 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
 - **M1 (done):** shared authenticated `app/(app)/layout.tsx` (auth guard + header w/ `MainNav`);
   Projects CRUD at `/projects` — list/create/edit/delete/reorder/status/current_focus via
   Server Actions in `app/(app)/projects/actions.ts` (RLS-scoped). Dashboard moved to `app/(app)/page.tsx`.
-- Next: M2 todos → M3 tile system + launcher/todos/project_status renderers → M4 deploy.
+- **M2 (done):** Todos — reusable client `components/todos/TodoList` (add/toggle/edit/delete/reorder,
+  due date, priority) over Server Actions in `app/(app)/todos/actions.ts`. Surfaces: global `/todos`
+  and per-project `/projects/[id]` detail page. Project card titles link to the detail page.
+- Next: M3 tile system + launcher/todos/project_status renderers → M4 deploy.
   Do **not** build Phase 2/3 features.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
