@@ -13,6 +13,11 @@ export type TileRendererProps = {
   data: TileData;
   /** Called after a renderer saves its own config, so the board can stay in sync. */
   onConfigSaved?: (config: unknown) => void;
+  /**
+   * Bumped each time the user hits the tile's refresh button (only for defs that
+   * set `refreshable`). Renderers re-fetch when this changes.
+   */
+  refreshNonce?: number;
 };
 
 export type TileConfigFormProps = {
@@ -33,6 +38,8 @@ export interface TileDefinition {
   icon: LucideIcon;
   defaultTitle: string;
   defaultConfig: unknown;
+  /** When true, TileCard shows a refresh button that bumps the renderer's `refreshNonce`. */
+  refreshable?: boolean;
   Renderer: ComponentType<TileRendererProps>;
   ConfigForm: ComponentType<TileConfigFormProps>;
 }

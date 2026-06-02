@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  Pencil,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Tile, TileSize } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -32,6 +40,7 @@ export function TileCard({
   onEdit: (t: Tile) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const def = getTileDef(tile.type);
   const title = tile.title || def?.label || tile.type;
 
@@ -93,8 +102,20 @@ export function TileCard({
             </span>
           )}
         </h3>
-        {editMode && (
+        {(def?.refreshable || editMode) && (
           <div className="flex shrink-0 items-center gap-0.5">
+            {def?.refreshable && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setRefreshNonce((n) => n + 1)}
+                aria-label="Refresh tile"
+              >
+                <RefreshCw className="size-3.5" />
+              </Button>
+            )}
+            {editMode && (
+              <>
             <Button
               variant="ghost"
               size="icon-xs"
@@ -161,6 +182,8 @@ export function TileCard({
             >
               <Trash2 className="size-3.5" />
             </Button>
+              </>
+            )}
           </div>
         )}
       </header>
@@ -174,6 +197,7 @@ export function TileCard({
             onConfigSaved={(config) =>
               onChanged({ ...tile, config: config as typeof tile.config })
             }
+            refreshNonce={refreshNonce}
           />
         ) : (
           <p className="text-sm text-muted-foreground">

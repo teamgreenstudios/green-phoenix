@@ -54,7 +54,9 @@ export type TileType =
   | "todos"
   | "project_status"
   | "notes" // Phase 2
-  | "bookmarks"; // Phase 2
+  | "bookmarks" // Phase 2
+  | "steam" // Phase 2 (data-source stub)
+  | "media"; // Phase 2 (data-source stub)
 
 export interface Tile<Config = Record<string, unknown>> {
   id: string;
@@ -101,4 +103,12 @@ export interface BookmarksConfig {
 
 export interface NotesConfig {
   markdown: string;
+}
+
+// Data-source tiles (Phase 2): placeholder configs for not-yet-wired integrations.
+export interface SteamConfig {
+  steamId?: string;
+}
+export interface MediaConfig {
+  libraryUrl?: string;
 }
