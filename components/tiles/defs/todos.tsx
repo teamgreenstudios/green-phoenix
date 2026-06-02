@@ -1,7 +1,6 @@
 "use client";
 
 import { ListChecks } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import type {
   TileDefinition,
   TileRendererProps,
 } from "../types";
+import { Field } from "../config-fields";
 
 function asConfig(config: unknown): TodosTileConfig {
   const c = (config ?? {}) as Partial<TodosTileConfig>;
@@ -52,9 +52,8 @@ function TodosRenderer({ config, data }: TileRendererProps) {
 function TodosConfigForm({ value, onChange, data }: TileConfigFormProps) {
   const cfg = asConfig(value);
   return (
-    <div className="grid gap-3">
-      <div className="grid gap-1.5">
-        <Label>Scope</Label>
+    <div className="grid gap-4">
+      <Field label="Scope" description="Show your global todos or one project's.">
         <Select
           value={cfg.scope}
           onValueChange={(v) =>
@@ -71,11 +70,10 @@ function TodosConfigForm({ value, onChange, data }: TileConfigFormProps) {
             <SelectItem value="project">A project</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </Field>
 
       {cfg.scope === "project" && (
-        <div className="grid gap-1.5">
-          <Label>Project</Label>
+        <Field label="Project">
           <Select
             value={cfg.project_id ?? ""}
             onValueChange={(v) => v && onChange({ ...cfg, project_id: v })}
@@ -101,11 +99,10 @@ function TodosConfigForm({ value, onChange, data }: TileConfigFormProps) {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
       )}
 
-      <div className="grid gap-1.5">
-        <Label>Show</Label>
+      <Field label="Show" description="Open todos only, or include completed ones.">
         <Select
           value={cfg.filter ?? "open"}
           onValueChange={(v) =>
@@ -122,7 +119,7 @@ function TodosConfigForm({ value, onChange, data }: TileConfigFormProps) {
             <SelectItem value="all">All todos</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </Field>
     </div>
   );
 }

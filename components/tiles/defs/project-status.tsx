@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Activity } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,6 +16,7 @@ import type {
   TileDefinition,
   TileRendererProps,
 } from "../types";
+import { Field } from "../config-fields";
 
 const ALL = "__all__";
 
@@ -66,8 +66,7 @@ function ProjectStatusConfigForm({ value, onChange, data }: TileConfigFormProps)
   const cfg = asConfig(value);
   const current = cfg.project_id ?? ALL;
   return (
-    <div className="grid gap-1.5">
-      <Label>Project</Label>
+    <Field label="Project" description="Show a single project or all of them.">
       <Select
         value={current}
         onValueChange={(v) =>
@@ -93,7 +92,7 @@ function ProjectStatusConfigForm({ value, onChange, data }: TileConfigFormProps)
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Field>
   );
 }
 
