@@ -112,3 +112,19 @@ export interface SteamConfig {
 export interface MediaConfig {
   libraryUrl?: string;
 }
+
+// Glanceable tiles (Phase 4).
+export interface CountdownConfig {
+  label?: string;
+  targetDate?: string; // ISO date or datetime
+}
+export interface PomodoroConfig {
+  workMin?: number;
+  breakMin?: number;
+}
+export interface WeatherConfig {
+  place?: string;
+  lat?: number;
+  lon?: number;
+  unit?: "celsius" | "fahrenheit";
+}
