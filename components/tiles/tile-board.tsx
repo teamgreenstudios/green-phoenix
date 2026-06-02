@@ -2,11 +2,28 @@
 
 import { useState } from "react";
 import { Check, LayoutGrid, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
 import type { Tile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { TileCard } from "./tile-card";
 import { AddEditTileDialog } from "./add-edit-tile-dialog";
 import type { TileData } from "./types";
+import { reorderTiles } from "@/app/(app)/tiles/actions";
 
 export function TileBoard({
   initialTiles,
@@ -37,6 +54,29 @@ export function TileBoard({
       [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
+
+  const sensors = useSensors(
+    // Small distance so clicks on the header controls aren't read as drags.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tiles.findIndex((t) => t.id === active.id);
+    const newIndex = tiles.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const prev = tiles;
+    const next = arrayMove(tiles, oldIndex, newIndex);
+    setTiles(next); // optimistic
+    reorderTiles(next.map((t) => t.id)).then((res) => {
+      if (res.error) {
+        setTiles(prev);
+        toast.error(res.error);
+      }
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -87,25 +127,36 @@ export function TileBoard({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((tile) => {
-            const idx = tiles.findIndex((t) => t.id === tile.id);
-            return (
-              <TileCard
-                key={tile.id}
-                tile={tile}
-                data={data}
-                editMode={editMode}
-                isFirst={idx === 0}
-                isLast={idx === tiles.length - 1}
-                onChanged={onChanged}
-                onDeleted={onDeleted}
-                onMoved={onMoved}
-                onEdit={(t) => setEditing(t)}
-              />
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={shown.map((t) => t.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {shown.map((tile) => {
+                const idx = tiles.findIndex((t) => t.id === tile.id);
+                return (
+                  <TileCard
+                    key={tile.id}
+                    tile={tile}
+                    data={data}
+                    editMode={editMode}
+                    isFirst={idx === 0}
+                    isLast={idx === tiles.length - 1}
+                    onChanged={onChanged}
+                    onDeleted={onDeleted}
+                    onMoved={onMoved}
+                    onEdit={(t) => setEditing(t)}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <AddEditTileDialog

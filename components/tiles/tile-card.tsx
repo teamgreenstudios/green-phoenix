@@ -6,11 +6,14 @@ import {
   ChevronUp,
   Eye,
   EyeOff,
+  GripVertical,
   Pencil,
   RefreshCw,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Tile, TileSize } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +46,21 @@ export function TileCard({
   const [refreshNonce, setRefreshNonce] = useState(0);
   const def = getTileDef(tile.type);
   const title = tile.title || def?.label || tile.type;
+
+  // Drag-and-drop reorder (edit mode only); resize stays on the S/M/L buttons.
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tile.id, disabled: !editMode });
+  const dragStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   async function setSize(size: TileSize) {
     if (size === tile.size) return;
@@ -87,21 +105,38 @@ export function TileCard({
 
   return (
     <section
+      ref={setNodeRef}
+      style={dragStyle}
       className={cn(
         "flex flex-col rounded-xl border border-border bg-card text-card-foreground",
         TILE_SIZE_SPAN[tile.size],
         editMode && !tile.visible && "opacity-50",
+        isDragging && "z-10 opacity-90 shadow-lg ring-1 ring-ring/40",
       )}
     >
       <header className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5">
-        <h3 className="truncate text-sm font-semibold">
-          {title}
-          {editMode && !tile.visible && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              (hidden)
-            </span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {editMode && (
+            <button
+              type="button"
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              aria-label="Drag to reorder tile"
+              className="-ml-1 shrink-0 cursor-grab touch-none rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+            >
+              <GripVertical className="size-4" />
+            </button>
           )}
-        </h3>
+          <h3 className="truncate text-sm font-semibold">
+            {title}
+            {editMode && !tile.visible && (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                (hidden)
+              </span>
+            )}
+          </h3>
+        </div>
         {(def?.refreshable || editMode) && (
           <div className="flex shrink-0 items-center gap-0.5">
             {def?.refreshable && (

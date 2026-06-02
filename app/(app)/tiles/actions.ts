@@ -136,3 +136,25 @@ export async function moveTile(
     return { error: e instanceof Error ? e.message : "Failed to reorder." };
   }
 }
+
+/**
+ * Persist a full drag-and-drop reordering: write sort_order = array index for
+ * each tile id, in the given order. RLS scopes every update to the user's rows.
+ */
+export async function reorderTiles(
+  orderedIds: string[],
+): Promise<TileActionResult> {
+  try {
+    const { supabase } = await requireUser();
+    const results = await Promise.all(
+      orderedIds.map((id, i) =>
+        supabase.from("tiles").update({ sort_order: i }).eq("id", id),
+      ),
+    );
+    const failed = results.find((r) => r.error)?.error;
+    if (failed) return { error: failed.message };
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to reorder." };
+  }
+}
