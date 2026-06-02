@@ -37,7 +37,17 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   `TileBoard` (client edit-mode: add/reorder/resize S-M-L/hide/edit/delete) + `TileCard`; tile
   Server Actions in `app/(app)/tiles/actions.ts`. Dashboard `/` is the responsive tile grid.
   Edit-mode toggle lives on the dashboard (not the global header) since it's dashboard-specific.
-- Next: M4 deploy (Vercel). Do **not** build Phase 2/3 features.
+- **Phase 2 (done):** two more renderers — `bookmarks` and `notes` (markdown via `react-markdown` +
+  `rehype-sanitize` + `remark-gfm`, **inline-editable on the tile**) — plus placeholder data-source
+  tiles `steam`/`media` (shared scaffold `components/tiles/defs/data-source-tile.tsx` + stub action
+  `app/(app)/tiles/data-sources.ts`; **stubs only**, no live integration). Generic **per-tile refresh**
+  (`refreshable` + `refreshNonce` on the tile contract; refresh button in `TileCard`). Shared
+  config-form helpers `components/tiles/config-fields.tsx` (`Field`, `LinkItemsEditor`; launcher
+  rewired to it). Renderer contract gained `id` + `onConfigSaved` (inline save). Light-mode pass:
+  light `--primary`/`--ring` darkened to `oklch(0.52 0.13 159)` for WCAG AA. New deps:
+  react-markdown, rehype-sanitize, remark-gfm.
+- Next: **M4 deploy (Vercel)** — infra-only, still deferred — and **Phase 3** (drag-and-drop,
+  realtime, optional SSO). Do **not** build Phase 3 features without the user's go-ahead.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
-`npm run build` and the preview MCP both pass against the M0 code.
+`npm run build` and the preview MCP both pass against the current code.

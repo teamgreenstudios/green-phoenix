@@ -10,10 +10,13 @@ Continuity notes for picking this up in a new session. Read alongside:
 
 - **Phase 1 (MVP) is complete and merged to `master`.** Commits: `838433f` (M0–M1), `3c7adc7` (M2),
   `d838daa` (M3). `npm run build` is green.
+- **Phase 2 (more tiles & polish) is complete and merged to `master`.** Commits: `d331d71`
+  (bookmarks), `0fb231b` + `0d77b10` (notes + GFM), `c2fd206` (steam/media stubs + per-tile refresh),
+  `dd9bd78` (config-form polish + light-mode pass). No new migration. `npm run build` is green.
 - **DB migrations `0001`–`0003` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
 - **M4 (Vercel deploy) is intentionally deferred** — no code work, pure infra (push to GitHub →
   import to Vercel → set the 3 env vars → add prod domain to Supabase Auth URL config).
-- **Phase 2/3 not started** (out of scope until the user says go).
+- **Phase 3 not started** (drag-and-drop, realtime, optional SSO — out of scope until the user says go).
 
 ---
 
@@ -108,30 +111,41 @@ app/(app)/page.tsx                    # dashboard = TileBoard
 app/(app)/projects, /projects/[id]    # projects CRUD + detail (with per-project todos)
 app/(app)/todos                       # global todos
 app/(app)/{projects,todos,tiles}/actions.ts   # RLS-scoped Server Actions
+app/(app)/tiles/data-sources.ts       # stub "refresh" action for data-source tiles (Phase 2)
 components/projects, components/todos  # ProjectCard/dialogs, TodoList/item/edit
 components/tiles/
   registry.ts                         # type → TileDefinition; SIZE spans
-  types.ts                            # TileDefinition / renderer+form prop types
-  defs/{launcher,todos,project-status}.tsx   # renderer + config form + meta per type
+  types.ts                            # TileDefinition (refreshable) / renderer props (id, onConfigSaved, refreshNonce)
+  config-fields.tsx                   # shared Field + LinkItemsEditor for config forms
+  defs/{launcher,todos,project-status,bookmarks,notes}.tsx   # renderer + config form + meta per type
+  defs/{steam,media}.tsx + defs/data-source-tile.tsx         # data-source stubs + shared scaffold
   tile-board.tsx, tile-card.tsx, add-edit-tile-dialog.tsx
 supabase/migrations/000{1,2,3}_*.sql  # schema+RLS, grants, search_path hardening
 ```
 
 ---
 
-## Phase 2 scope (spec §10) — do NOT start without the user's go-ahead
+## Phase 2 (spec §10) — DONE
 
-- [ ] `notes` (markdown) tile renderer
-- [ ] `bookmarks` tile renderer
-- [ ] Placeholder "data-source" tiles for Steam / media (config + stub renderer)
-- [ ] Per-tile refresh, nicer config forms, **light-mode pass**
+- [x] `bookmarks` tile renderer (compact link list; shares `LinkItemsEditor` with launcher)
+- [x] `notes` (markdown) tile renderer — **inline-editable on the tile**; `react-markdown` +
+      `rehype-sanitize` + `remark-gfm` (tables/strikethrough/task lists). Prose styled with scoped
+      Tailwind variants over theme tokens (no typography-plugin dep).
+- [x] Placeholder data-source tiles `steam` / `media` (config + stub renderer; shared scaffold
+      `components/tiles/defs/data-source-tile.tsx`; stub fetch `app/(app)/tiles/data-sources.ts`).
+      **Stubs only** — no live integration yet.
+- [x] Per-tile refresh (`refreshable` + `refreshNonce` on the tile contract; refresh button in
+      `TileCard`), nicer config forms (shared `Field`/`LinkItemsEditor` in
+      `components/tiles/config-fields.tsx`), light-mode pass (light `--primary`/`--ring` darkened to
+      `oklch(0.52 0.13 159)` for WCAG AA white-on-primary + primary-on-white).
 
 **Adding a tile type = no migration:** create `components/tiles/defs/<type>.tsx` exporting a
 `TileDefinition` (Renderer + ConfigForm + meta), then add it to the array in
-`components/tiles/registry.ts`. The config shape rides in the `tiles.config` jsonb column.
-`notes` needs a markdown renderer dependency (e.g. `react-markdown` + a sanitizer) — **flag and ask
-before adding deps.** The light-mode pass means auditing `app/globals.css` `:root` tokens and the
-green accent for contrast in light mode (dark is the only fully-tuned theme today).
+`components/tiles/registry.ts`. The config shape rides in the `tiles.config` jsonb column. The
+renderer contract (`components/tiles/types.ts`) also carries `id` + optional `onConfigSaved` (tiles
+that save their own config inline, e.g. notes) and `refreshNonce` (for `refreshable` defs). Wiring a
+real Steam/media integration = replace the per-type branch in `data-sources.ts` (the renderer shape
+already supports `ok`/`message`/`detail`/`fetchedAt`).
 
 ---
 
