@@ -13,10 +13,15 @@ Continuity notes for picking this up in a new session. Read alongside:
 - **Phase 2 (more tiles & polish) is complete and merged to `master`.** Commits: `d331d71`
   (bookmarks), `0fb231b` + `0d77b10` (notes + GFM), `c2fd206` (steam/media stubs + per-tile refresh),
   `dd9bd78` (config-form polish + light-mode pass). No new migration. `npm run build` is green.
+- **Phase 3 (drag-and-drop + realtime) is complete and merged to `master`.** Commits: `c3b493b`
+  (dnd-kit tile reorder), `77adc1e` (Supabase realtime wiring). `npm run build` is green. Cross-app
+  **SSO was intentionally skipped** (spec §11). Realtime is **inert until replication is enabled** on
+  `todos`/`projects` — see `BACKLOG.md`.
 - **DB migrations `0001`–`0003` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
+- **Owner action items now live in `BACKLOG.md`:** enable Realtime replication, the deferred M4
+  Vercel deploy, and the optional DB-level email-allowlist hardening.
 - **M4 (Vercel deploy) is intentionally deferred** — no code work, pure infra (push to GitHub →
   import to Vercel → set the 3 env vars → add prod domain to Supabase Auth URL config).
-- **Phase 3 not started** (drag-and-drop, realtime, optional SSO — out of scope until the user says go).
 
 ---
 
@@ -104,6 +109,7 @@ lib/supabase/{server,client,middleware,env}.ts   # @supabase/ssr clients + updat
 lib/auth.ts                           # isAllowedEmail (ALLOWED_EMAILS)
 lib/types.ts                          # DB rows + tile config shapes
 lib/{projects,todos}.ts               # status/priority metadata + helpers
+lib/hooks/use-realtime.ts             # postgres_changes subscription hook (Phase 3)
 app/(auth)/login, /auth/callback      # Google + magic-link auth
 app/not-authorized                    # allowlist bounce page
 app/(app)/layout.tsx                  # auth guard + header (MainNav, theme, account)
@@ -111,16 +117,18 @@ app/(app)/page.tsx                    # dashboard = TileBoard
 app/(app)/projects, /projects/[id]    # projects CRUD + detail (with per-project todos)
 app/(app)/todos                       # global todos
 app/(app)/{projects,todos,tiles}/actions.ts   # RLS-scoped Server Actions
-app/(app)/tiles/data-sources.ts       # stub "refresh" action for data-source tiles (Phase 2)
-components/projects, components/todos  # ProjectCard/dialogs, TodoList/item/edit
+app/(app)/tiles/{actions,data-sources}.ts   # tile Server Actions (incl. reorderTiles, Phase 3) + data-source stub fetch
+components/projects, components/todos  # ProjectCard/dialogs, TodoList (realtime merge)/item/edit
+components/projects/realtime-projects.tsx    # router.refresh() on projects changes (Phase 3)
 components/tiles/
   registry.ts                         # type → TileDefinition; SIZE spans
   types.ts                            # TileDefinition (refreshable) / renderer props (id, onConfigSaved, refreshNonce)
   config-fields.tsx                   # shared Field + LinkItemsEditor for config forms
   defs/{launcher,todos,project-status,bookmarks,notes}.tsx   # renderer + config form + meta per type
   defs/{steam,media}.tsx + defs/data-source-tile.tsx         # data-source stubs + shared scaffold
-  tile-board.tsx, tile-card.tsx, add-edit-tile-dialog.tsx
+  tile-board.tsx (dnd-kit DnD), tile-card.tsx (drag handle), add-edit-tile-dialog.tsx
 supabase/migrations/000{1,2,3}_*.sql  # schema+RLS, grants, search_path hardening
+BACKLOG.md                            # owner action items (enable replication, M4 deploy, optional hardening)
 ```
 
 ---

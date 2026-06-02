@@ -46,8 +46,15 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   rewired to it). Renderer contract gained `id` + `onConfigSaved` (inline save). Light-mode pass:
   light `--primary`/`--ring` darkened to `oklch(0.52 0.13 159)` for WCAG AA. New deps:
   react-markdown, rehype-sanitize, remark-gfm.
-- Next: **M4 deploy (Vercel)** — infra-only, still deferred — and **Phase 3** (drag-and-drop,
-  realtime, optional SSO). Do **not** build Phase 3 features without the user's go-ahead.
+- **Phase 3 (done, except SSO):** drag-and-drop tile reorder via **dnd-kit** (grip handle in edit
+  mode; `reorderTiles` action writes `sort_order`; resize stays on the S/M/L buttons). **Supabase
+  realtime** wiring — reusable `lib/hooks/use-realtime.ts`; `TodoList` merges live todo changes by
+  id; `components/projects/realtime-projects.tsx` does `router.refresh()` on `/projects` +
+  `/projects/[id]`. Realtime is **inert until the owner enables replication** on `todos`/`projects`
+  (see `BACKLOG.md`). Cross-app **SSO intentionally skipped** (spec §11, out of scope). New deps:
+  `@dnd-kit/{core,sortable,utilities}`.
+- Next: **owner infra only** — M4 Vercel deploy + enable Realtime replication (both in `BACKLOG.md`).
+  No further code phases are planned; do **not** start the SSO exploration without the user's go-ahead.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
 `npm run build` and the preview MCP both pass against the current code.
