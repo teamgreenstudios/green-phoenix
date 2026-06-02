@@ -118,6 +118,21 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Accent presets (Phase 4). Default (green) uses the base tokens above; other
+   accents override --primary/--ring per theme via a data-accent attribute on
+   <html>. Light values are AA-checked for white-on-primary; dark values pair
+   with the dark near-black --primary-foreground. */
+:root[data-accent="blue"]   { --primary: oklch(0.55 0.17 256); --ring: oklch(0.55 0.17 256); }
+.dark[data-accent="blue"]   { --primary: oklch(0.70 0.15 256); --ring: oklch(0.70 0.15 256); }
+:root[data-accent="violet"] { --primary: oklch(0.55 0.20 292); --ring: oklch(0.55 0.20 292); }
+.dark[data-accent="violet"] { --primary: oklch(0.70 0.17 292); --ring: oklch(0.70 0.17 292); }
+:root[data-accent="rose"]   { --primary: oklch(0.55 0.19 12);  --ring: oklch(0.55 0.19 12); }
+.dark[data-accent="rose"]   { --primary: oklch(0.70 0.16 12);  --ring: oklch(0.70 0.16 12); }
+:root[data-accent="teal"]   { --primary: oklch(0.52 0.10 185); --ring: oklch(0.52 0.10 185); }
+.dark[data-accent="teal"]   { --primary: oklch(0.70 0.12 185); --ring: oklch(0.70 0.12 185); }
+:root[data-accent="orange"] { --primary: oklch(0.55 0.16 50);  --ring: oklch(0.55 0.16 50); }
+.dark[data-accent="orange"] { --primary: oklch(0.72 0.15 55);  --ring: oklch(0.72 0.15 55); }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

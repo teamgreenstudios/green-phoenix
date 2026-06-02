@@ -3,6 +3,8 @@ import { Flame } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/auth/account-menu";
 import { MainNav } from "@/components/main-nav";
+import { CommandPalette } from "@/components/command-palette";
+import { AccentPicker } from "@/components/accent-picker";
 
 /**
  * Top bar: app title, primary nav, theme toggle, account menu (sign out).
@@ -22,6 +24,8 @@ export function DashboardHeader({ email }: { email: string }) {
           <MainNav />
         </div>
         <div className="flex items-center gap-1">
+          <CommandPalette />
+          <AccentPicker />
           <ThemeToggle />
           <AccountMenu email={email} />
         </div>

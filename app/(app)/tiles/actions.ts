@@ -158,3 +158,19 @@ export async function reorderTiles(
     return { error: e instanceof Error ? e.message : "Failed to reorder." };
   }
 }
+
+/** Return all of the user's tiles, ordered — for the export/backup feature. */
+export async function exportTiles(): Promise<TileActionResult<Tile[]>> {
+  try {
+    const { supabase } = await requireUser();
+    const { data, error } = await supabase
+      .from("tiles")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) return { error: error.message };
+    return { data: (data ?? []) as Tile[] };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to export tiles." };
+  }
+}

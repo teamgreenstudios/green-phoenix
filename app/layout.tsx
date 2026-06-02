@@ -31,6 +31,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        {/* Apply the saved accent before paint to avoid a flash of the default. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var a=localStorage.getItem('accent');if(a&&a!=='green'){document.documentElement.setAttribute('data-accent',a)}}catch(e){}",
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
