@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TodoItem } from "./todo-item";
 import { createTodo } from "@/app/(app)/todos/actions";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime";
 
 export function TodoList({
   scope,
@@ -54,6 +55,24 @@ export function TodoList({
       [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
+
+  // Live updates from other devices/tabs. Merges by id (idempotent, so the echo
+  // of our own optimistic writes is a no-op); keeps local ordering untouched.
+  useRealtimeTable("todos", (payload) => {
+    if (payload.eventType === "DELETE") {
+      const oldId = (payload.old as { id?: string }).id;
+      if (oldId) setTodos((prev) => prev.filter((t) => t.id !== oldId));
+      return;
+    }
+    const row = payload.new as unknown as Todo;
+    const inScope =
+      scope === "project" ? row.project_id === projectId : row.project_id === null;
+    setTodos((prev) => {
+      const exists = prev.some((t) => t.id === row.id);
+      if (!inScope) return exists ? prev.filter((t) => t.id !== row.id) : prev;
+      return exists ? prev.map((t) => (t.id === row.id ? row : t)) : [...prev, row];
+    });
+  });
 
   return (
     <div className="space-y-3">

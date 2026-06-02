@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, GitBranch } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Project, Todo } from "@/lib/types";
 import { StatusBadge } from "@/components/projects/status-badge";
+import { RealtimeProjects } from "@/components/projects/realtime-projects";
 import { TodoList } from "@/components/todos/todo-list";
 
 export default async function ProjectDetailPage({
@@ -33,6 +34,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeProjects />
       <Link
         href="/projects"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

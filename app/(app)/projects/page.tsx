@@ -4,6 +4,7 @@ import type { Project } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateProjectButton } from "@/components/projects/create-project-button";
 import { ProjectCard } from "@/components/projects/project-card";
+import { RealtimeProjects } from "@/components/projects/realtime-projects";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -18,6 +19,7 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeProjects />
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
