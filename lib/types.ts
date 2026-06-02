@@ -98,3 +98,7 @@ export interface BookmarkItem {
 export interface BookmarksConfig {
   items: BookmarkItem[];
 }
+
+export interface NotesConfig {
+  markdown: string;
+}

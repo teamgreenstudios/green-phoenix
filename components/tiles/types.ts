@@ -6,9 +6,13 @@ import type { Project, Todo } from "@/lib/types";
 export type TileData = { projects: Project[]; todos: Todo[] };
 
 export type TileRendererProps = {
+  /** The tile's row id — lets renderers persist their own config (e.g. inline edit). */
+  id: string;
   config: unknown;
   title: string | null;
   data: TileData;
+  /** Called after a renderer saves its own config, so the board can stay in sync. */
+  onConfigSaved?: (config: unknown) => void;
 };
 
 export type TileConfigFormProps = {

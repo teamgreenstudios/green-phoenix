@@ -166,7 +166,15 @@ export function TileCard({
       </header>
       <div className="p-4">
         {def ? (
-          <def.Renderer config={tile.config} title={tile.title} data={data} />
+          <def.Renderer
+            id={tile.id}
+            config={tile.config}
+            title={tile.title}
+            data={data}
+            onConfigSaved={(config) =>
+              onChanged({ ...tile, config: config as typeof tile.config })
+            }
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
             Unknown tile type: <code className="font-mono">{tile.type}</code>

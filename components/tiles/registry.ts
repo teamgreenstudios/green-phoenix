@@ -4,6 +4,7 @@ import { launcherDef } from "./defs/launcher";
 import { todosDef } from "./defs/todos";
 import { projectStatusDef } from "./defs/project-status";
 import { bookmarksDef } from "./defs/bookmarks";
+import { notesDef } from "./defs/notes";
 
 /**
  * The tile registry (spec §6). Adding a new tile type = write a def and add it
@@ -14,6 +15,7 @@ export const TILE_DEFS: TileDefinition[] = [
   todosDef,
   projectStatusDef,
   bookmarksDef,
+  notesDef,
 ];
 
 export const TILE_REGISTRY: Record<string, TileDefinition> = Object.fromEntries(
