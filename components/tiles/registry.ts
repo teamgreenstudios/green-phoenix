@@ -13,6 +13,7 @@ import { countdownDef } from "./defs/countdown";
 import { todayDef } from "./defs/today";
 import { heatmapDef } from "./defs/heatmap";
 import { habitsDef } from "./defs/habits";
+import { githubDef } from "./defs/github";
 
 /**
  * The tile registry (spec §6). Adding a new tile type = write a def and add it
@@ -32,6 +33,7 @@ export const TILE_DEFS: TileDefinition[] = [
   todayDef,
   heatmapDef,
   habitsDef,
+  githubDef,
 ];
 
 export const TILE_REGISTRY: Record<string, TileDefinition> = Object.fromEntries(

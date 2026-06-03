@@ -57,6 +57,59 @@ function DataSourceRenderer({
     );
   }
 
+  const lastChecked = result?.fetchedAt && (
+    <p className="flex items-center gap-1.5 pt-1 text-[11px] text-muted-foreground/70">
+      {loading && <Loader2 className="size-3 animate-spin" />}
+      Last checked {new Date(result.fetchedAt).toLocaleTimeString()}
+    </p>
+  );
+
+  // Live data → a list of items.
+  if (result?.ok && result.items && result.items.length > 0) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Icon className="size-3.5" />
+          {result.message}
+        </div>
+        <ul className="space-y-0.5">
+          {result.items.map((it, i) => {
+            const row = (
+              <>
+                <span className="truncate">{it.label}</span>
+                {it.sub && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {it.sub}
+                  </span>
+                )}
+              </>
+            );
+            return (
+              <li key={i}>
+                {it.url ? (
+                  <a
+                    href={it.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-sm transition-colors hover:bg-muted"
+                  >
+                    {row}
+                  </a>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 px-1.5 py-1 text-sm">
+                    {row}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {lastChecked}
+      </div>
+    );
+  }
+
+  // Not configured / no data → centered placeholder.
   return (
     <div className="flex flex-col items-center gap-2 py-3 text-center">
       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -66,12 +119,7 @@ function DataSourceRenderer({
       <p className="text-xs text-muted-foreground">
         {result?.detail || emptyHint}
       </p>
-      {result?.fetchedAt && (
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
-          {loading && <Loader2 className="size-3 animate-spin" />}
-          Last checked {new Date(result.fetchedAt).toLocaleTimeString()}
-        </p>
-      )}
+      {lastChecked}
     </div>
   );
 }

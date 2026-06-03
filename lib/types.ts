@@ -143,6 +143,9 @@ export interface SteamConfig {
 export interface MediaConfig {
   libraryUrl?: string;
 }
+export interface GithubConfig {
+  username?: string;
+}
 
 // Glanceable tiles (Phase 4).
 export interface CountdownConfig {
