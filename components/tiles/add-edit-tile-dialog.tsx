@@ -23,11 +23,12 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: TileData;
+  boardId?: string;
   onSaved: (t: Tile) => void;
 } & ({ mode: "add"; tile?: undefined } | { mode: "edit"; tile: Tile });
 
 export function AddEditTileDialog(props: Props) {
-  const { open, onOpenChange, data, onSaved } = props;
+  const { open, onOpenChange, data, boardId, onSaved } = props;
   const [type, setType] = useState("");
   const [title, setTitle] = useState("");
   const [config, setConfig] = useState<unknown>({});
@@ -66,7 +67,7 @@ export function AddEditTileDialog(props: Props) {
     setSaving(true);
     const res =
       props.mode === "add"
-        ? await createTile({ type, title, config })
+        ? await createTile({ type, title, config, boardId })
         : await updateTile(props.tile.id, { title, config });
     setSaving(false);
     if (res.error || !res.data) {

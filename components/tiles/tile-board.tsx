@@ -28,9 +28,11 @@ import { reorderTiles } from "@/app/(app)/tiles/actions";
 export function TileBoard({
   initialTiles,
   data,
+  boardId,
 }: {
   initialTiles: Tile[];
   data: TileData;
+  boardId?: string;
 }) {
   const [tiles, setTiles] = useState<Tile[]>(initialTiles);
   const [editMode, setEditMode] = useState(false);
@@ -164,6 +166,7 @@ export function TileBoard({
         open={addOpen}
         onOpenChange={setAddOpen}
         data={data}
+        boardId={boardId}
         onSaved={onCreated}
       />
       {editing && (

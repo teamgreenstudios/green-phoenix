@@ -66,6 +66,16 @@ export interface HabitEntry {
   created_at: string;
 }
 
+// Multiple dashboards (Phase 4). Only tiles are board-scoped; projects/todos are global.
+export interface Board {
+  id: string;
+  user_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type TileSize = "S" | "M" | "L";
 
 /** Known tile types. `type` is stored as free text so new renderers need no migration. */
@@ -81,6 +91,7 @@ export type TileType =
 export interface Tile<Config = Record<string, unknown>> {
   id: string;
   user_id: string;
+  board_id: string | null; // Phase 4: which dashboard board this tile belongs to
   type: string;
   title: string | null;
   config: Config;

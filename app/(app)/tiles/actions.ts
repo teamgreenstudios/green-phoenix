@@ -23,14 +23,31 @@ export async function createTile(input: {
   title?: string | null;
   config?: unknown;
   size?: string;
+  boardId?: string | null;
 }): Promise<TileActionResult<Tile>> {
   const type = (input.type ?? "").trim();
   if (!type) return { error: "Tile type is required." };
   try {
     const { supabase, user } = await requireUser();
+
+    // Resolve the target board: explicit, else the user's first board (so
+    // board-less callers like import land tiles on the default board).
+    let boardId = input.boardId ?? null;
+    if (!boardId) {
+      const { data: b } = await supabase
+        .from("boards")
+        .select("id")
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      boardId = b?.id ?? null;
+    }
+
+    // Next sort_order within this board.
     const { data: last } = await supabase
       .from("tiles")
       .select("sort_order")
+      .eq("board_id", boardId)
       .order("sort_order", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -40,6 +57,7 @@ export async function createTile(input: {
       .from("tiles")
       .insert({
         user_id: user.id,
+        board_id: boardId,
         type,
         title: (input.title ?? "").trim() || null,
         config: (input.config ?? {}) as object,
