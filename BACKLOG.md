@@ -26,7 +26,7 @@ Deferred since Phase 1. Pure infra:
 - Push the repo to GitHub.
 - Import the project into Vercel (Hobby tier).
 - Set env vars in Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
-  `ALLOWED_EMAILS`.
+  `ALLOWED_EMAILS` (plus the optional `STEAM_API_KEY` / `GITHUB_TOKEN` from §4 if you use those tiles).
 - Supabase → Auth → URL Configuration: add the production Vercel domain to **Site URL** and
   **Redirect URLs** (so Google OAuth + magic links work in prod).
 
@@ -44,4 +44,19 @@ Today the allowlist is enforced in `proxy.ts` (`lib/auth.ts#isAllowedEmail`). Th
 
 ---
 
-_Last updated 2026-06-02, after Phase 3 (drag-and-drop reorder + realtime wiring)._
+## 4. (Optional) GitHub / Steam tile tokens — live data-source tiles
+
+The GitHub and Steam tiles (Phase 4) render without setup but show richer data with credentials.
+Set these as **server-only** env vars (in `.env.local` locally, and in Vercel for prod — never
+`NEXT_PUBLIC_`):
+
+- **`STEAM_API_KEY`** — *required* for the Steam tile's live data (recently-played). Grab one at
+  https://steamcommunity.com/dev/apikey. Without it the tile shows "Set STEAM_API_KEY to enable".
+- **`GITHUB_TOKEN`** — *optional*. The GitHub tile already shows public activity from just a
+  username; a read-only PAT adds private activity + higher rate limits.
+
+Migration `0004_phase4.sql` is already applied to the project.
+
+---
+
+_Last updated 2026-06-02, after Phase 4 (feature expansion: tiles, ⌘K, accent, boards, PWA, …)._

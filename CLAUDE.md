@@ -54,7 +54,18 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   end-to-end** (the hook calls `supabase.realtime.setAuth` so RLS `postgres_changes` include row
   data — fix `564c008`). Cross-app **SSO intentionally skipped** (spec §11, out of scope). New deps:
   `@dnd-kit/{core,sortable,utilities}`.
-- Next: **owner infra only** — M4 Vercel deploy (see `BACKLOG.md`).
+- **Phase 4 (done):** glanceable tiles (`weather` via Open-Meteo, `pomodoro`, `countdown`); ⌘K
+  **command palette + search** (`cmdk`; `components/command-palette.tsx`); **accent picker**
+  (`data-accent` overrides in `globals.css` + a no-flash inline script in the root layout);
+  **export/import** tiles (account menu); **todo tags** + filter + `completed_at`; **Today** +
+  **activity heatmap** tiles; **habit tracker** (`app/(app)/habits/`, `defs/habits.tsx`); **multiple
+  dashboards** (`boards` + `tiles.board_id`; `lib/load-dashboard.ts`, route `/b/[boardId]`,
+  `components/{board-tabs,dashboard-view}.tsx`; tiles are board-scoped, projects/todos global);
+  **GitHub/Steam** data tiles (`defs/github.tsx` + live fetches in `tiles/data-sources.ts`, graceful
+  without tokens); **PWA** (`app/manifest.ts`, `public/{icon.svg,sw.js}`, viewport themeColor) +
+  mobile-overflow polish. Migration `0004_phase4.sql` is applied. New dep: `cmdk`. Optional owner
+  env: `GITHUB_TOKEN`, `STEAM_API_KEY` (see `BACKLOG.md`).
+- Next: **owner infra only** — M4 Vercel deploy + (optional) GitHub/Steam tokens (see `BACKLOG.md`).
   No further code phases are planned; do **not** start the SSO exploration without the user's go-ahead.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).

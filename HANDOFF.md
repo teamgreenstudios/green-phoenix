@@ -18,9 +18,15 @@ Continuity notes for picking this up in a new session. Read alongside:
   `npm run build` is green. Cross-app **SSO was intentionally skipped** (spec §11). Realtime is
   **live and verified** — replication is enabled on `todos`/`projects`, and the hook authenticates
   the socket (`setAuth`) so RLS `postgres_changes` include row data.
-- **DB migrations `0001`–`0003` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
-- **Owner action items live in `BACKLOG.md`:** the deferred M4 Vercel deploy and the optional
-  DB-level email-allowlist hardening. (Realtime replication is now **enabled** — done.)
+- **Phase 4 (feature expansion) is complete and merged to `master`.** 16 features across 10
+  milestones: glanceable tiles (weather/pomodoro/countdown), ⌘K command palette + search (`cmdk`),
+  accent picker, export/import, todo tags, Today + activity-heatmap tiles, habit tracker, multiple
+  dashboards (boards), live GitHub/Steam tiles, and PWA + mobile polish. Migration `0004_phase4.sql`
+  applied. `npm run build` is green.
+- **DB migrations `0001`–`0004` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
+- **Owner action items live in `BACKLOG.md`:** the deferred M4 Vercel deploy, optional GitHub/Steam
+  tile tokens (`GITHUB_TOKEN`/`STEAM_API_KEY`), and the optional DB-level email-allowlist hardening.
+  (Realtime replication is **enabled** — done.)
 - **M4 (Vercel deploy) is intentionally deferred** — no code work, pure infra (push to GitHub →
   import to Vercel → set the 3 env vars → add prod domain to Supabase Auth URL config).
 
@@ -113,8 +119,8 @@ lib/{projects,todos}.ts               # status/priority metadata + helpers
 lib/hooks/use-realtime.ts             # postgres_changes subscription hook (Phase 3)
 app/(auth)/login, /auth/callback      # Google + magic-link auth
 app/not-authorized                    # allowlist bounce page
-app/(app)/layout.tsx                  # auth guard + header (MainNav, theme, account)
-app/(app)/page.tsx                    # dashboard = TileBoard
+app/(app)/layout.tsx                  # auth guard + header (MainNav, ⌘K, accent, theme, account)
+app/(app)/page.tsx                    # default dashboard board (DashboardView)
 app/(app)/projects, /projects/[id]    # projects CRUD + detail (with per-project todos)
 app/(app)/todos                       # global todos
 app/(app)/{projects,todos,tiles}/actions.ts   # RLS-scoped Server Actions
@@ -125,10 +131,16 @@ components/tiles/
   registry.ts                         # type → TileDefinition; SIZE spans
   types.ts                            # TileDefinition (refreshable) / renderer props (id, onConfigSaved, refreshNonce)
   config-fields.tsx                   # shared Field + LinkItemsEditor for config forms
-  defs/{launcher,todos,project-status,bookmarks,notes}.tsx   # renderer + config form + meta per type
-  defs/{steam,media}.tsx + defs/data-source-tile.tsx         # data-source stubs + shared scaffold
-  tile-board.tsx (dnd-kit DnD), tile-card.tsx (drag handle), add-edit-tile-dialog.tsx
-supabase/migrations/000{1,2,3}_*.sql  # schema+RLS, grants, search_path hardening
+  defs/{launcher,todos,project-status,bookmarks,notes,weather,pomodoro,countdown,today,heatmap,habits,github}.tsx
+  defs/{steam,media}.tsx + defs/data-source-tile.tsx   # data sources; live GitHub/Steam fetch in tiles/data-sources.ts
+  tile-board.tsx (dnd-kit DnD + board-aware), tile-card.tsx (drag handle), add-edit-tile-dialog.tsx
+lib/load-dashboard.ts                 # board-aware loader for / and /b/[boardId] (Phase 4)
+app/(app)/b/[boardId]                 # a specific dashboard board (Phase 4)
+app/(app)/{boards,command,habits}/actions.ts   # board CRUD / palette search / habit CRUD (Phase 4)
+components/{board-tabs,dashboard-view}.tsx      # board switcher + dashboard wrapper (Phase 4)
+components/{command-palette,accent-picker,sw-register}.tsx   # ⌘K, accent picker, SW registrar (Phase 4)
+app/manifest.ts + public/{icon.svg,sw.js}       # PWA manifest, icon, service worker (Phase 4)
+supabase/migrations/000{1,2,3,4}_*.sql  # schema+RLS, grants, search_path hardening, Phase 4 schema
 BACKLOG.md                            # owner action items (enable replication, M4 deploy, optional hardening)
 ```
 
