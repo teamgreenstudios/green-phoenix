@@ -23,11 +23,13 @@ Continuity notes for picking this up in a new session. Read alongside:
   accent picker, export/import, todo tags, Today + activity-heatmap tiles, habit tracker, multiple
   dashboards (boards), live GitHub/Steam tiles, and PWA + mobile polish. Migration `0004_phase4.sql`
   applied. `npm run build` is green.
-- **DB migrations `0001`–`0008` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
+- **DB migrations `0001`–`0009` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
   `0005` AND-ed `is_allowed_user()` into all RLS policies (DB-level email allowlist, hardcoded
   list — not a GUC; see CLAUDE.md); `0006` added FK covering indexes; `0007` wrapped the policies'
   auth calls in `(select …)` (initplan perf); `0008` added `projects.external_path` for the disk
-  sync. The dashboard's `public` schema is now clear of WARN-level Supabase advisors.
+  sync; `0009` granted `service_role` DML on the dashboard tables (0002 only granted
+  `authenticated`, so the sync's secret key hit "permission denied" until this). The dashboard's
+  `public` schema is now clear of WARN-level Supabase advisors.
 - **Disk sync (local CLI):** `scripts/sync-from-disk.mjs` / `npm run sync` (`-- --dry-run` previews
   with no key). Folders under `SYNC_CODE_ROOT` → projects; `BACKLOG.md` GFM checkboxes → todos.
   Local-only, service-role auth. Needs `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (BACKLOG §5).
