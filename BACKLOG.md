@@ -50,9 +50,10 @@ users keep their rows; spoofed / non-allowlisted emails get zero).
 - **`auth_rls_initplan`** (advisor, INFO): the 24 policies call `auth.uid()` / `is_allowed_user()`
   per row. Wrapping them as `(select auth.uid())` / `(select public.is_allowed_user())` lets
   Postgres evaluate each once per query. Zero behavior change, tiny perf win at single-user scale.
-- **Leaked-password protection** is OFF (advisor, WARN). Toggle on in Supabase → Authentication →
-  Sign In / Providers → Password → enable "Leaked password protection" (HaveIBeenPwned). Low
-  relevance since you use Google/magic-link, but the test user has a password.
+- **Leaked-password protection** is OFF (advisor, WARN). **Not actionable on the current plan** —
+  the HaveIBeenPwned toggle (Supabase → Authentication → Password) is a **Pro-plan feature** and
+  this project is on the free/Hobby tier. The advisor will keep flagging it; safe to ignore unless
+  the project is later upgraded to Pro. (Low relevance anyway — auth is Google/magic-link.)
 
 ---
 
