@@ -80,6 +80,14 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   vanished folders → project archived, removed checkboxes → todo deleted; manual rows untouched.
   Runs **locally only** (a Vercel server can't read your disk) and writes via the **service-role key**
   (`SUPABASE_SERVICE_ROLE_KEY` in `.env.local`) for `SYNC_USER_EMAIL`. No new npm deps.
+- **Job Hunter (Phase 5 — read-only mirror):** the separate local Job Hunter app's
+  `jobs/jobs.json` is mirrored into a new `jobs` table (migration `0010`) by the same
+  `npm run sync` (reads `<SYNC_JOBHUNTER_DIR or CODE_ROOT/Job Hunter>/jobs/jobs.json`; mirror
+  reconcile by `external_id`). Surfaced **read-only** at **`/jobs`** (KPI cards + status pipeline;
+  `app/(app)/jobs/page.tsx` + `components/jobs/*`) and a compact **`job_hunter` tile**
+  (`components/tiles/defs/job-hunter.tsx`). Jobs load via `loadDashboard` into `TileData.jobs`;
+  KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`). No editing/write-back
+  (local-only, deferred).
 - Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
   the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
   exploration without the user's go-ahead.

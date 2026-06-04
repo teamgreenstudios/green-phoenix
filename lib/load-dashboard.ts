@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Board, Project, Tile, Todo } from "@/lib/types";
+import type { Board, Job, Project, Tile, Todo } from "@/lib/types";
 
 export type DashboardData = {
   boards: Board[];
@@ -9,6 +9,7 @@ export type DashboardData = {
   tiles: Tile[];
   projects: Project[];
   todos: Todo[];
+  jobs: Job[];
 };
 
 /**
@@ -28,6 +29,7 @@ export async function loadDashboard(boardId?: string): Promise<DashboardData> {
     tiles: [],
     projects: [],
     todos: [],
+    jobs: [],
   };
   if (!user) return empty;
 
@@ -55,7 +57,7 @@ export async function loadDashboard(boardId?: string): Promise<DashboardData> {
   const missing = !!boardId && !requested;
   const currentBoard = requested ?? boards[0] ?? null;
 
-  const [projectsRes, todosRes] = await Promise.all([
+  const [projectsRes, todosRes, jobsRes] = await Promise.all([
     supabase
       .from("projects")
       .select("*")
@@ -68,6 +70,11 @@ export async function loadDashboard(boardId?: string): Promise<DashboardData> {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
       .returns<Todo[]>(),
+    supabase
+      .from("jobs")
+      .select("*")
+      .order("match_score", { ascending: false, nullsFirst: false })
+      .returns<Job[]>(),
   ]);
 
   let tiles: Tile[] = [];
@@ -91,5 +98,6 @@ export async function loadDashboard(boardId?: string): Promise<DashboardData> {
     tiles,
     projects: projectsRes.data ?? [],
     todos: todosRes.data ?? [],
+    jobs: jobsRes.data ?? [],
   };
 }

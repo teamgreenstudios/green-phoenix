@@ -9,6 +9,8 @@
  *     (keyed by absolute path in projects.external_path, migration 0008).
  *   - In each folder's BACKLOG.md, lines like `- [ ] task` / `- [x] done` become
  *     todos (tagged `disk-sync`); `[x]` marks them complete.
+ *   - Job Hunter's local jobs/jobs.json is mirrored (read-only) into the `jobs`
+ *     table (migration 0010), keyed by external_id.
  *   - MIRROR reconciliation: synced projects whose folder is gone get ARCHIVED;
  *     synced todos whose checkbox is gone get DELETED. Manual projects/todos
  *     (no external_path / no `disk-sync` tag) are never touched.
@@ -113,6 +115,78 @@ function parseBacklog(file) {
   return todos;
 }
 
+// ── Job Hunter jobs.json → jobs (read-only mirror) ───────────────────────────
+const JOB_STATUSES = [
+  "New",
+  "Interested",
+  "Tailored",
+  "Applied",
+  "Interviewing",
+  "Offer",
+  "Rejected",
+  "Passed",
+];
+// Columns the sync owns (compared to decide insert vs update vs no-op).
+const JOB_FIELDS = [
+  "company",
+  "title",
+  "location",
+  "remote",
+  "source",
+  "url",
+  "match_score",
+  "why_it_fits",
+  "salary",
+  "status",
+  "date_found",
+  "date_applied",
+  "next_action",
+  "notes",
+  "application_folder",
+];
+
+function findJobsJson(codeRoot) {
+  const dir = process.env.SYNC_JOBHUNTER_DIR
+    ? resolve(process.env.SYNC_JOBHUNTER_DIR)
+    : join(codeRoot, "Job Hunter");
+  const file = join(dir, "jobs", "jobs.json");
+  return existsSync(file) ? { dir, file } : null;
+}
+
+function parseJobs(file) {
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+  const clean = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return raw
+    .filter((j) => j && j.id)
+    .map((j) => {
+      const score = Number(j.matchScore);
+      return {
+        external_id: String(j.id),
+        company: clean(j.company),
+        title: clean(j.title),
+        location: clean(j.location),
+        remote: clean(j.remote),
+        source: clean(j.source),
+        url: clean(j.url),
+        match_score: Number.isFinite(score) ? score : null,
+        why_it_fits: clean(j.whyItFits),
+        salary: clean(j.salary),
+        status: JOB_STATUSES.includes(j.status) ? j.status : "New",
+        date_found: clean(j.dateFound),
+        date_applied: clean(j.dateApplied),
+        next_action: clean(j.nextAction),
+        notes: clean(j.notes),
+        application_folder: clean(j.applicationFolder),
+      };
+    });
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   loadEnvLocal();
@@ -136,6 +210,21 @@ async function main() {
     console.log(
       `  • ${p.name.padEnd(20)} ${p.backlog ? `${p.todos.length} todos (${open} open, ${done} done)` : "no BACKLOG.md"}`,
     );
+  }
+
+  const jobsSrc = findJobsJson(codeRoot);
+  const jobs = jobsSrc ? parseJobs(jobsSrc.file) : [];
+  if (jobsSrc) {
+    const byStatus = {};
+    for (const j of jobs) byStatus[j.status] = (byStatus[j.status] || 0) + 1;
+    const summary = JOB_STATUSES.filter((s) => byStatus[s])
+      .map((s) => `${s} ${byStatus[s]}`)
+      .join(", ");
+    console.log(
+      `Job Hunter jobs: ${jobs.length}${summary ? `  (${summary})` : ""}`,
+    );
+  } else {
+    console.log("Job Hunter jobs: no jobs.json found (skipping)");
   }
 
   if (DRY_RUN) {
@@ -174,7 +263,16 @@ async function main() {
   }
   const userId = user.id;
   const nowIso = new Date().toISOString();
-  const stats = { projCreated: 0, projArchived: 0, todoAdded: 0, todoUpdated: 0, todoDeleted: 0 };
+  const stats = {
+    projCreated: 0,
+    projArchived: 0,
+    todoAdded: 0,
+    todoUpdated: 0,
+    todoDeleted: 0,
+    jobAdded: 0,
+    jobUpdated: 0,
+    jobDeleted: 0,
+  };
 
   // Existing synced projects for this user, keyed by path.
   const { data: existingProjects, error: pErr } = await supa
@@ -280,10 +378,56 @@ async function main() {
     }
   }
 
+  // 4) Reconcile Job Hunter jobs (read-only mirror of jobs.json → jobs table).
+  if (jobsSrc) {
+    const jhProjectId = projectIdByPath.get(jobsSrc.dir) ?? null;
+    const cols =
+      "id,external_id,project_id,company,title,location,remote,source,url," +
+      "match_score,why_it_fits,salary,status,date_found,date_applied," +
+      "next_action,notes,application_folder";
+    const { data: existingJobs, error: jErr } = await supa
+      .from("jobs")
+      .select(cols)
+      .eq("user_id", userId);
+    if (jErr) throw jErr;
+    const byExt = new Map(existingJobs.map((j) => [j.external_id, j]));
+    const wantedExt = new Set(jobs.map((j) => j.external_id));
+
+    for (const j of jobs) {
+      const row = { ...j, project_id: jhProjectId };
+      const cur = byExt.get(j.external_id);
+      if (!cur) {
+        const { error } = await supa
+          .from("jobs")
+          .insert({ user_id: userId, ...row });
+        if (error) throw error;
+        stats.jobAdded++;
+      } else {
+        const changed =
+          (cur.project_id ?? null) !== (jhProjectId ?? null) ||
+          JOB_FIELDS.some((f) => (cur[f] ?? null) !== (row[f] ?? null));
+        if (changed) {
+          const { error } = await supa.from("jobs").update(row).eq("id", cur.id);
+          if (error) throw error;
+          stats.jobUpdated++;
+        }
+      }
+    }
+    for (const j of existingJobs) {
+      if (!wantedExt.has(j.external_id)) {
+        await supa.from("jobs").delete().eq("id", j.id);
+        stats.jobDeleted++;
+      }
+    }
+  }
+
   console.log(
     `\n✔ Sync complete for ${email}:\n` +
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
-      `  todos:    +${stats.todoAdded} added, ${stats.todoUpdated} updated, ${stats.todoDeleted} deleted\n`,
+      `  todos:    +${stats.todoAdded} added, ${stats.todoUpdated} updated, ${stats.todoDeleted} deleted\n` +
+      (jobsSrc
+        ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted\n`
+        : ""),
   );
 }
 

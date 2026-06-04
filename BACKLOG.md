@@ -94,8 +94,14 @@ Conventions: one project per top-level folder (keyed by `projects.external_path`
 MIRROR mode — vanished folders get archived, removed checkboxes get deleted; manual
 projects/todos (no `external_path` / no `disk-sync` tag) are never touched.
 
+The same `npm run sync` also mirrors the **Job Hunter** app's `jobs/jobs.json` into the `jobs`
+table (migration 0010, keyed by `external_id`) and surfaces it **read-only** at `/jobs` (KPI cards
++ status pipeline) plus the `job_hunter` dashboard tile. Override the source with
+`SYNC_JOBHUNTER_DIR` (default `<code root>/Job Hunter`). No editing/write-back to `jobs.json`.
+
 ---
 
-_Last updated 2026-06-04 — disk-sync feature (`npm run sync`, migration 0008 + §5 above) added;
-RLS initplan optimization (migration 0007). Earlier: DB email-allowlist hardening (§3, 0005) +
-FK covering indexes (0006). Open: §4 (Steam/GitHub tokens) and §5 (add service-role key) optional._
+_Last updated 2026-06-04 — Job Hunter read-only mirror (migration 0010, `/jobs` page + `job_hunter`
+tile, jobs added to `npm run sync`). Earlier today: disk-sync (0008), RLS initplan (0007),
+service_role grant (0009), DB email-allowlist (0005), FK indexes (0006). Open: §4 (Steam/GitHub
+tokens) and §5 (add service-role key) optional._

@@ -50,6 +50,41 @@ export interface Todo {
   updated_at: string;
 }
 
+// Jobs (Phase 5 — Job Hunter read-only mirror; populated by scripts/sync-from-disk.mjs).
+export type JobStatus =
+  | "New"
+  | "Interested"
+  | "Tailored"
+  | "Applied"
+  | "Interviewing"
+  | "Offer"
+  | "Rejected"
+  | "Passed";
+
+export interface Job {
+  id: string;
+  user_id: string;
+  external_id: string; // Job Hunter's JH-xxxx id (sync key)
+  project_id: string | null; // best-effort link to the synced "Job Hunter" project
+  company: string | null;
+  title: string | null;
+  location: string | null;
+  remote: string | null;
+  source: string | null;
+  url: string | null;
+  match_score: number | null;
+  why_it_fits: string | null;
+  salary: string | null;
+  status: JobStatus;
+  date_found: string | null; // ISO date
+  date_applied: string | null; // ISO date
+  next_action: string | null;
+  notes: string | null;
+  application_folder: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Habit tracker (Phase 4).
 export interface Habit {
   id: string;
@@ -88,7 +123,8 @@ export type TileType =
   | "notes" // Phase 2
   | "bookmarks" // Phase 2
   | "steam" // Phase 2 (data-source stub)
-  | "media"; // Phase 2 (data-source stub)
+  | "media" // Phase 2 (data-source stub)
+  | "job_hunter"; // Phase 5 (Job Hunter read-only mirror)
 
 export interface Tile<Config = Record<string, unknown>> {
   id: string;
@@ -147,6 +183,11 @@ export interface MediaConfig {
 }
 export interface GithubConfig {
   username?: string;
+}
+
+/** Job Hunter tile (Phase 5): how many top matches to list. */
+export interface JobHunterConfig {
+  topN?: number;
 }
 
 // Glanceable tiles (Phase 4).

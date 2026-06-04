@@ -8,7 +8,7 @@ export default async function BoardPage({
   params: Promise<{ boardId: string }>;
 }) {
   const { boardId } = await params;
-  const { boards, currentBoard, missing, tiles, projects, todos } =
+  const { boards, currentBoard, missing, tiles, projects, todos, jobs } =
     await loadDashboard(boardId);
   if (missing || !currentBoard) notFound();
   return (
@@ -18,6 +18,7 @@ export default async function BoardPage({
       tiles={tiles}
       projects={projects}
       todos={todos}
+      jobs={jobs}
     />
   );
 }

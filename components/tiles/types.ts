@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
-import type { Project, Todo } from "@/lib/types";
+import type { Job, Project, Todo } from "@/lib/types";
 
 /** Data the dashboard loads once and feeds to every tile renderer. */
-export type TileData = { projects: Project[]; todos: Todo[] };
+export type TileData = { projects: Project[]; todos: Todo[]; jobs: Job[] };
 
 export type TileRendererProps = {
   /** The tile's row id — lets renderers persist their own config (e.g. inline edit). */

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Board, Project, Tile, Todo } from "@/lib/types";
+import type { Board, Job, Project, Tile, Todo } from "@/lib/types";
 import { BoardTabs } from "@/components/board-tabs";
 import { TileBoard } from "@/components/tiles/tile-board";
 
@@ -10,12 +10,14 @@ export function DashboardView({
   tiles,
   projects,
   todos,
+  jobs,
 }: {
   boards: Board[];
   currentBoardId: string;
   tiles: Tile[];
   projects: Project[];
   todos: Todo[];
+  jobs: Job[];
 }) {
   return (
     <div className="space-y-4">
@@ -24,7 +26,7 @@ export function DashboardView({
       <TileBoard
         key={currentBoardId}
         initialTiles={tiles}
-        data={{ projects, todos }}
+        data={{ projects, todos, jobs }}
         boardId={currentBoardId}
       />
     </div>
