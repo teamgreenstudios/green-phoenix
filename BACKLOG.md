@@ -101,7 +101,40 @@ table (migration 0010, keyed by `external_id`) and surfaces it **read-only** at 
 
 ---
 
+## 6. Deployment (Vercel) — repo connection + how to deploy
+
+The Vercel project **green-phoenix** (team `teamgreendatas-projects`, project id
+`prj_gZUfR5d9jXFws8b5tEJOJeYQFW9K`) serves the prod domain **green-phoenix-sable.vercel.app**.
+Its Git integration is authorized through the **`teamgreendata`** GitHub account, which can't
+see the `teamgreenstudios` org — so it can only deploy from **`teamgreendata/green-phoenix`**
+(private), NOT `teamgreenstudios/green-phoenix` (public) where the code is normally worked on
+(`origin`). For a long stretch this meant pushes to `main` never deployed (prod sat on a stale
+build); `/jobs` 404'd until this was sorted.
+
+**Current deploy setup:** code is pushed to **both** repos. `teamgreendata/green-phoenix` is the
+**deploy source** (connect it in Vercel, Production Branch = `main`); `teamgreenstudios/green-phoenix`
+remains the working `origin`. Keep them in sync (push `main` to both). Your machine is logged into
+both GitHub accounts via `gh` (`gh auth switch --user teamgreendata|teamgreenstudios`).
+
+**Alternative deploy — direct CLI upload (no git, "option 2"):** bypasses the git connection
+entirely; handy when repo wiring is in flux.
+- Create a Vercel token: https://vercel.com/account/settings/tokens
+- `npm i -g vercel` (the CLI isn't installed by default)
+- From the project root (the dir with `.vercel/`): `vercel deploy --prod --token=<TOKEN> --yes`
+
+**Cleanest long-term fix (deferred):** install the Vercel GitHub App on the `teamgreenstudios`
+org (or sign in to Vercel with the teamgreenstudios GitHub account) so Vercel can deploy
+`teamgreenstudios/green-phoenix` directly — eliminating the two-repo split. Then drop the
+`teamgreendata/green-phoenix` deploy mirror.
+
+> Note: Vercel **env vars + domain live on the project**, not the repo, so changing the connected
+> repo on the existing green-phoenix project keeps `green-phoenix-sable.vercel.app` and all env vars.
+> Migrations apply to the shared Supabase DB out-of-band — no deploy-time DB step.
+
+---
+
 _Last updated 2026-06-04 — Job Hunter read-only mirror (migration 0010, `/jobs` page + `job_hunter`
-tile, jobs added to `npm run sync`). Earlier today: disk-sync (0008), RLS initplan (0007),
-service_role grant (0009), DB email-allowlist (0005), FK indexes (0006). Open: §4 (Steam/GitHub
-tokens) and §5 (add service-role key) optional._
+tile, jobs added to `npm run sync`); documented the Vercel deploy setup (§6 — deploy source is
+`teamgreendata/green-phoenix`; direct-CLI fallback). Earlier today: disk-sync (0008), RLS initplan
+(0007), service_role grant (0009), DB email-allowlist (0005), FK indexes (0006). Open: §4
+(Steam/GitHub tokens) and §5 (add service-role key) optional._
