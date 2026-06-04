@@ -46,10 +46,12 @@ users keep their rows; spoofed / non-allowlisted emails get zero).
 > Current list: `robgreen31@gmail.com`, `robgreen31+dash@gmail.com`, `teamgreenstudios@gmail.com`.
 > To change it: edit the `array[...]` in `is_allowed_user()` and re-apply.
 
-### Optional follow-ups surfaced while doing this (low priority)
-- **`auth_rls_initplan`** (advisor, INFO): the 24 policies call `auth.uid()` / `is_allowed_user()`
-  per row. Wrapping them as `(select auth.uid())` / `(select public.is_allowed_user())` lets
-  Postgres evaluate each once per query. Zero behavior change, tiny perf win at single-user scale.
+### Follow-ups surfaced while doing this
+- ~~**`auth_rls_initplan`** advisor~~ — ✅ DONE (migration 0007). All 24 policies now wrap their
+  auth calls as `(select auth.uid())` / `(select public.is_allowed_user())`, so they're evaluated
+  once per query instead of per row. The dashboard's `public` schema is now clear of WARN-level
+  performance advisories (only expected `unused_index` INFO notes remain on the new/single-user
+  indexes; all other advisor noise belongs to the separate `travel_pins` app in the same project).
 - **Leaked-password protection** is OFF (advisor, WARN). **Not actionable on the current plan** —
   the HaveIBeenPwned toggle (Supabase → Authentication → Password) is a **Pro-plan feature** and
   this project is on the free/Hobby tier. The advisor will keep flagging it; safe to ignore unless
