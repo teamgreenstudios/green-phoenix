@@ -70,8 +70,19 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   without tokens); **PWA** (`app/manifest.ts`, `public/{icon.svg,sw.js}`, viewport themeColor) +
   mobile-overflow polish. Migration `0004_phase4.sql` is applied. New dep: `cmdk`. Optional owner
   env: `GITHUB_TOKEN`, `STEAM_API_KEY` (see `BACKLOG.md`).
-- Next: **owner infra only** — M4 Vercel deploy + (optional) GitHub/Steam tokens (see `BACKLOG.md`).
-  No further code phases are planned; do **not** start the SSO exploration without the user's go-ahead.
+- **Post-Phase-4 hardening:** DB-level email allowlist AND-ed into all RLS (`0005`); FK covering
+  indexes (`0006`); RLS initplan `(select …)` wrapping (`0007`). The `public` schema is clear of
+  WARN-level Supabase advisors. Allowlist is **hardcoded in `is_allowed_user()`** (not a GUC). See `BACKLOG.md`.
+- **Disk sync (local CLI):** `scripts/sync-from-disk.mjs` (`npm run sync`; `-- --dry-run` to preview)
+  mirrors the folders under `SYNC_CODE_ROOT` (default `C:\Users\Rob\Documents\Claude\Code`) into
+  `projects` (one per folder, keyed by `projects.external_path`, migration `0008`) and each folder's
+  `BACKLOG.md` **GFM checkboxes** into that project's `todos` (tagged `disk-sync`). MIRROR mode:
+  vanished folders → project archived, removed checkboxes → todo deleted; manual rows untouched.
+  Runs **locally only** (a Vercel server can't read your disk) and writes via the **service-role key**
+  (`SUPABASE_SERVICE_ROLE_KEY` in `.env.local`) for `SYNC_USER_EMAIL`. No new npm deps.
+- Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
+  the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
+  exploration without the user's go-ahead.
 
 The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
 `npm run build` and the preview MCP both pass against the current code.

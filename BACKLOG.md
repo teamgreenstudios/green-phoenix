@@ -74,6 +74,28 @@ Migration `0004_phase4.sql` is already applied to the project.
 
 ---
 
-_Last updated 2026-06-03 — DB email-allowlist hardening (§3, migration 0005) + FK covering
-indexes (migration 0006) applied & verified. Remaining open items: §2 done, §4 (Steam/GitHub
-tokens) still optional._
+## 5. Disk sync — add the service-role key to run it
+
+`npm run sync` (`scripts/sync-from-disk.mjs`) mirrors the folders under
+`C:\Users\Rob\Documents\Claude\Code` into projects, and each folder's `BACKLOG.md`
+GFM checkboxes into that project's todos. It runs **locally only** (a Vercel server can't
+read your disk) and writes via the Supabase **service-role** secret.
+
+One-time enable:
+- Supabase → Settings → API → copy the **service_role** secret.
+- Add to `.env.local` (gitignored; never `NEXT_PUBLIC_`, never deploy to Vercel):
+  `SUPABASE_SERVICE_ROLE_KEY=...`
+- Preview with `npm run sync -- --dry-run`, then apply with `npm run sync`.
+- Optional overrides: `SYNC_CODE_ROOT`, `SYNC_USER_EMAIL` (default `robgreen31@gmail.com`),
+  `SYNC_IGNORE` (comma-separated folder names, e.g. `Green Phoenix`).
+
+Conventions: one project per top-level folder (keyed by `projects.external_path`, migration
+0008); only `- [ ]` / `- [x]` checkbox lines become todos (tagged `disk-sync`, `[x]` = done).
+MIRROR mode — vanished folders get archived, removed checkboxes get deleted; manual
+projects/todos (no `external_path` / no `disk-sync` tag) are never touched.
+
+---
+
+_Last updated 2026-06-04 — disk-sync feature (`npm run sync`, migration 0008 + §5 above) added;
+RLS initplan optimization (migration 0007). Earlier: DB email-allowlist hardening (§3, 0005) +
+FK covering indexes (0006). Open: §4 (Steam/GitHub tokens) and §5 (add service-role key) optional._

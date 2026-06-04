@@ -24,6 +24,8 @@ export interface Project {
   live_url: string | null;
   status: ProjectStatus;
   current_focus: string | null;
+  /** Absolute folder path when managed by the disk-sync script; null for manual projects (migration 0008). */
+  external_path: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
