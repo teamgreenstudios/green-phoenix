@@ -32,15 +32,27 @@ Deferred since Phase 1. Pure infra:
 
 ---
 
-## 3. (Optional) Database-level email allowlist — defense in depth
+## 3. ~~Database-level email allowlist — defense in depth~~ — ✅ DONE (2026-06-03)
 
-Today the allowlist is enforced in `proxy.ts` (`lib/auth.ts#isAllowedEmail`). The DB helper
-`is_allowed_user()` exists in the migration but isn't wired into RLS (policies are owner-only
-`auth.uid() = user_id`). To add belt-and-suspenders (spec §5):
+`public.is_allowed_user()` is now AND-ed into every RLS policy on all six user-data tables
+(`projects`/`todos`/`tiles`/`boards`/`habits`/`habit_entries`) — see
+`supabase/migrations/0005_db_allowlist_hardening.sql`. Applied + verified live (allowlisted
+users keep their rows; spoofed / non-allowlisted emails get zero).
 
-- `alter database postgres set app.allowed_emails = 'robgreen31@gmail.com,robgreen31+dash@gmail.com';`
-- AND `is_allowed_user()` into each table's RLS `using` / `with check` (the clause is commented
-  in `supabase/migrations/0001_init.sql`).
+> DEVIATION: the spec used a GUC (`alter database postgres set app.allowed_emails = …`), but the
+> Supabase MCP/pooler role is denied `ALTER DATABASE`. So the allowlist is **hardcoded in the
+> `is_allowed_user()` function** instead — version-controlled and auditable in the migration.
+> **Keep it in sync** with `ALLOWED_EMAILS` (proxy.ts + Vercel env) and the Supabase auth users.
+> Current list: `robgreen31@gmail.com`, `robgreen31+dash@gmail.com`, `teamgreenstudios@gmail.com`.
+> To change it: edit the `array[...]` in `is_allowed_user()` and re-apply.
+
+### Optional follow-ups surfaced while doing this (low priority)
+- **`auth_rls_initplan`** (advisor, INFO): the 24 policies call `auth.uid()` / `is_allowed_user()`
+  per row. Wrapping them as `(select auth.uid())` / `(select public.is_allowed_user())` lets
+  Postgres evaluate each once per query. Zero behavior change, tiny perf win at single-user scale.
+- **Leaked-password protection** is OFF (advisor, WARN). Toggle on in Supabase → Authentication →
+  Sign In / Providers → Password → enable "Leaked password protection" (HaveIBeenPwned). Low
+  relevance since you use Google/magic-link, but the test user has a password.
 
 ---
 
@@ -59,4 +71,6 @@ Migration `0004_phase4.sql` is already applied to the project.
 
 ---
 
-_Last updated 2026-06-02, after Phase 4 (feature expansion: tiles, ⌘K, accent, boards, PWA, …)._
+_Last updated 2026-06-03 — DB email-allowlist hardening (§3, migration 0005) + FK covering
+indexes (migration 0006) applied & verified. Remaining open items: §2 done, §4 (Steam/GitHub
+tokens) still optional._

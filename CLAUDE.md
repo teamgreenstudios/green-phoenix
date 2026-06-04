@@ -19,9 +19,14 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   exported function is `proxy`). The internal helper is still `lib/supabase/middleware.ts`.
 - Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (falls back to
   `_ANON_KEY`), and `ALLOWED_EMAILS` (server-only; the real access lock). See `.env.local.example`.
-- Email allowlist is enforced in `proxy.ts` (`lib/auth.ts#isAllowedEmail`). The DB helper
-  `is_allowed_user()` exists in the migration but is **not** wired into RLS policies (policies
-  are owner-only `auth.uid() = user_id`); the AND-clause is commented in `0001_init.sql`.
+- Email allowlist is enforced in `proxy.ts` (`lib/auth.ts#isAllowedEmail`) **and** in the DB:
+  as of `0005_db_allowlist_hardening.sql`, `public.is_allowed_user()` is AND-ed into every
+  RLS policy on all six user-data tables (`projects`/`todos`/`tiles`/`boards`/`habits`/
+  `habit_entries`). Deviation from spec §5: the allowlist is **hardcoded in `is_allowed_user()`**
+  (not a `current_setting('app.allowed_emails')` GUC) because the MCP/pooler role lacks
+  `ALTER DATABASE` privilege. Keep that hardcoded list in sync with `ALLOWED_EMAILS` (proxy.ts
+  + Vercel env). Current allowlist: `robgreen31@gmail.com`, `robgreen31+dash@gmail.com`,
+  `teamgreenstudios@gmail.com`.
 
 ## Milestone status
 - **M0 (done):** scaffold, `supabase/migrations/0001_init.sql`, Supabase clients, Google +

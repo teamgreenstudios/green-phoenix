@@ -8,25 +8,27 @@ Continuity notes for picking this up in a new session. Read alongside:
 
 ## Where things stand
 
-- **Phase 1 (MVP) is complete and merged to `master`.** Commits: `838433f` (M0–M1), `3c7adc7` (M2),
+- **Phase 1 (MVP) is complete and merged to `main`.** Commits: `838433f` (M0–M1), `3c7adc7` (M2),
   `d838daa` (M3). `npm run build` is green.
-- **Phase 2 (more tiles & polish) is complete and merged to `master`.** Commits: `d331d71`
+- **Phase 2 (more tiles & polish) is complete and merged to `main`.** Commits: `d331d71`
   (bookmarks), `0fb231b` + `0d77b10` (notes + GFM), `c2fd206` (steam/media stubs + per-tile refresh),
   `dd9bd78` (config-form polish + light-mode pass). No new migration. `npm run build` is green.
-- **Phase 3 (drag-and-drop + realtime) is complete and merged to `master`.** Commits: `c3b493b`
+- **Phase 3 (drag-and-drop + realtime) is complete and merged to `main`.** Commits: `c3b493b`
   (dnd-kit tile reorder), `77adc1e` (Supabase realtime wiring), `564c008` (realtime auth fix).
   `npm run build` is green. Cross-app **SSO was intentionally skipped** (spec §11). Realtime is
   **live and verified** — replication is enabled on `todos`/`projects`, and the hook authenticates
   the socket (`setAuth`) so RLS `postgres_changes` include row data.
-- **Phase 4 (feature expansion) is complete and merged to `master`.** 16 features across 10
+- **Phase 4 (feature expansion) is complete and merged to `main`.** 16 features across 10
   milestones: glanceable tiles (weather/pomodoro/countdown), ⌘K command palette + search (`cmdk`),
   accent picker, export/import, todo tags, Today + activity-heatmap tiles, habit tracker, multiple
   dashboards (boards), live GitHub/Steam tiles, and PWA + mobile polish. Migration `0004_phase4.sql`
   applied. `npm run build` is green.
-- **DB migrations `0001`–`0004` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
-- **Owner action items live in `BACKLOG.md`:** the deferred M4 Vercel deploy, optional GitHub/Steam
-  tile tokens (`GITHUB_TOKEN`/`STEAM_API_KEY`), and the optional DB-level email-allowlist hardening.
-  (Realtime replication is **enabled** — done.)
+- **DB migrations `0001`–`0006` are applied** to the Supabase project (ref `lxxhprumtvzwpbhkcphd`).
+  `0005` AND-ed `is_allowed_user()` into all RLS policies (DB-level email allowlist, hardcoded
+  list — not a GUC; see CLAUDE.md); `0006` added FK covering indexes.
+- **Owner action items live in `BACKLOG.md`:** only optional GitHub/Steam tile tokens
+  (`GITHUB_TOKEN`/`STEAM_API_KEY`) remain. M4 Vercel deploy ✅, realtime replication ✅, and the
+  DB-level email-allowlist hardening ✅ are all done.
 - **M4 (Vercel deploy) is intentionally deferred** — no code work, pure infra (push to GitHub →
   import to Vercel → set the 3 env vars → add prod domain to Supabase Auth URL config).
 
@@ -45,7 +47,7 @@ Continuity notes for picking this up in a new session. Read alongside:
   "I drove it and checked the DB," not "it should work."
 - **Commit per milestone** with a descriptive multi-paragraph message ending in the
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer. Work on a branch; fast-forward
-  `master` when the user says "merge".
+  `main` when the user says "merge".
 - **The user owns infra** (Supabase project, Google OAuth, Vercel, env vars). Tell them exactly what's
   needed and when; don't assume you can do it for them. They connected an authorized Supabase MCP so
   you *can* do DB work — see below.
@@ -140,7 +142,7 @@ app/(app)/{boards,command,habits}/actions.ts   # board CRUD / palette search / h
 components/{board-tabs,dashboard-view}.tsx      # board switcher + dashboard wrapper (Phase 4)
 components/{command-palette,accent-picker,sw-register}.tsx   # ⌘K, accent picker, SW registrar (Phase 4)
 app/manifest.ts + public/{icon.svg,sw.js}       # PWA manifest, icon, service worker (Phase 4)
-supabase/migrations/000{1,2,3,4}_*.sql  # schema+RLS, grants, search_path hardening, Phase 4 schema
+supabase/migrations/000{1..6}_*.sql   # schema+RLS, grants, search_path, Phase 4, allowlist RLS, FK indexes
 BACKLOG.md                            # owner action items (enable replication, M4 deploy, optional hardening)
 ```
 
