@@ -10,6 +10,7 @@ import {
   sortByScoreDesc,
 } from "@/lib/jobs";
 import { Input } from "@/components/ui/input";
+import { JobsRefresh } from "@/components/jobs/jobs-refresh";
 import { Field } from "../config-fields";
 import type {
   TileConfigFormProps,
@@ -91,12 +92,15 @@ function JobHunterRenderer({ config, data }: TileRendererProps) {
         })}
       </ul>
 
-      <Link
-        href="/jobs"
-        className="inline-block text-xs font-medium text-primary hover:underline"
-      >
-        View pipeline →
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/jobs"
+          className="text-xs font-medium text-primary hover:underline"
+        >
+          View pipeline →
+        </Link>
+        <JobsRefresh compact />
+      </div>
     </div>
   );
 }
