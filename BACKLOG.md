@@ -74,7 +74,10 @@ Migration `0004_phase4.sql` is already applied to the project.
 
 ---
 
-## 5. Disk sync — add the service-role key to run it
+## 5. Disk sync — service-role key + auto-sync (ACTIVE)
+
+**Status:** `SUPABASE_SERVICE_ROLE_KEY` is configured in `.env.local`, the sync is verified, and
+an auto-sync **Windows scheduled task runs every 30 min** (see "Auto-sync" below).
 
 `npm run sync` (`scripts/sync-from-disk.mjs`) mirrors the folders under
 `C:\Users\Rob\Documents\Claude\Code` into projects, and each folder's `BACKLOG.md`
@@ -98,6 +101,31 @@ The same `npm run sync` also mirrors the **Job Hunter** app's `jobs/jobs.json` i
 table (migration 0010, keyed by `external_id`) and surfaces it **read-only** at `/jobs` (KPI cards
 + status pipeline) plus the `job_hunter` dashboard tile. Override the source with
 `SYNC_JOBHUNTER_DIR` (default `<code root>/Job Hunter`). No editing/write-back to `jobs.json`.
+
+### Auto-sync — Windows Task Scheduler (ACTIVE)
+
+A scheduled task **`GreenPhoenix-DiskSync`** runs `scripts/run-sync.cmd` (it `cd`s to the repo
+root so `.env.local` loads, runs `node scripts/sync-from-disk.mjs`, and appends to `sync.log`)
+**every 30 min while logged on** — runs on battery, and catches up if a run was missed. Registered
+via PowerShell `Register-ScheduledTask`. Keeps Supabase current from `jobs.json` / `BACKLOG.md`
+automatically, so the dashboard is always fresh.
+
+Manage it (PowerShell):
+
+    Start-ScheduledTask      -TaskName "GreenPhoenix-DiskSync"     # run now
+    Disable-ScheduledTask    -TaskName "GreenPhoenix-DiskSync"     # pause
+    Enable-ScheduledTask     -TaskName "GreenPhoenix-DiskSync"     # resume
+    Unregister-ScheduledTask -TaskName "GreenPhoenix-DiskSync" -Confirm:$false   # remove
+    Get-Content "C:\Users\Rob\Documents\Claude\Code\Green Phoenix\sync.log" -Tail 20   # see results
+    # change interval (e.g. 15 min):
+    Set-ScheduledTask -TaskName "GreenPhoenix-DiskSync" -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650))
+
+### Refresh from the UI
+
+`/jobs` and the `job_hunter` tile have a **Refresh** control (`components/jobs/jobs-refresh.tsx`)
+that calls `router.refresh()` to re-query **Supabase** instantly (no reload). It does NOT read
+`jobs.json` — that's the sync's job (manual `npm run sync` or the auto-sync task above). The
+"Updated …" freshness hint uses `formatRelativeTime` in `lib/format-time.ts`.
 
 ---
 
@@ -133,8 +161,9 @@ org (or sign in to Vercel with the teamgreenstudios GitHub account) so Vercel ca
 
 ---
 
-_Last updated 2026-06-04 — Job Hunter read-only mirror (migration 0010, `/jobs` page + `job_hunter`
-tile, jobs added to `npm run sync`); documented the Vercel deploy setup (§6 — deploy source is
-`teamgreendata/green-phoenix`; direct-CLI fallback). Earlier today: disk-sync (0008), RLS initplan
-(0007), service_role grant (0009), DB email-allowlist (0005), FK indexes (0006). Open: §4
-(Steam/GitHub tokens) and §5 (add service-role key) optional._
+_Last updated 2026-06-06 — auto-sync scheduled task (`GreenPhoenix-DiskSync`, every 30 min) +
+UI Refresh button on `/jobs`/tile (§5); dialog overflow fix. Earlier: Job Hunter mirror (0010,
+`/jobs` + tile), Vercel deploy setup (§6 — deploy source `teamgreendata/green-phoenix`),
+disk-sync (0008), RLS initplan (0007), service_role grant (0009), email-allowlist (0005), FK
+indexes (0006). Open: §4 (Steam/GitHub tokens) optional; §6 long-term fix (connect Vercel to the
+teamgreenstudios org) deferred._
