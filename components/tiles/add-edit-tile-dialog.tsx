@@ -96,7 +96,7 @@ export function AddEditTileDialog(props: Props) {
           {props.mode === "add" && (
             <div className="grid gap-2">
               <Label>Type</Label>
-              <div className="grid gap-2">
+              <div className="grid max-h-[45vh] gap-2 overflow-y-auto pr-1">
                 {TILE_DEFS.map((d) => (
                   <button
                     key={d.type}
