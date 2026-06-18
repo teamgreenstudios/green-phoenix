@@ -77,10 +77,10 @@ Migration `0004_phase4.sql` is already applied to the project.
 ## 5. Disk sync — service-role key + auto-sync (ACTIVE)
 
 **Status:** `SUPABASE_SERVICE_ROLE_KEY` is configured in `.env.local`, the sync is verified, and
-an auto-sync **Windows scheduled task runs every 30 min** (see "Auto-sync" below).
+an auto-sync **cron job runs every 30 min** (see "Auto-sync" below).
 
 `npm run sync` (`scripts/sync-from-disk.mjs`) mirrors the folders under
-`C:\Users\Rob\Documents\Claude\Code` into projects, and each folder's `BACKLOG.md`
+`/home/robgreen/projects` into projects, and each folder's `BACKLOG.md`
 GFM checkboxes into that project's todos. It runs **locally only** (a Vercel server can't
 read your disk) and writes via the Supabase **service-role** secret.
 
@@ -102,23 +102,22 @@ table (migration 0010, keyed by `external_id`) and surfaces it **read-only** at 
 + status pipeline) plus the `job_hunter` dashboard tile. Override the source with
 `SYNC_JOBHUNTER_DIR` (default `<code root>/Job Hunter`). No editing/write-back to `jobs.json`.
 
-### Auto-sync — Windows Task Scheduler (ACTIVE)
+### Auto-sync — cron (Linux)
 
-A scheduled task **`GreenPhoenix-DiskSync`** runs `scripts/run-sync.cmd` (it `cd`s to the repo
-root so `.env.local` loads, runs `node scripts/sync-from-disk.mjs`, and appends to `sync.log`)
-**every 30 min while logged on** — runs on battery, and catches up if a run was missed. Registered
-via PowerShell `Register-ScheduledTask`. Keeps Supabase current from `jobs.json` / `BACKLOG.md`
-automatically, so the dashboard is always fresh.
+A cron job runs `scripts/run-sync.sh` (it `cd`s to the repo root so `.env.local` loads, runs
+`node scripts/sync-from-disk.mjs`, and appends to `sync.log`) **every 30 min**. Keeps Supabase
+current from `jobs.json` / `BACKLOG.md` automatically, so the dashboard is always fresh.
 
-Manage it (PowerShell):
+Manage it (cron):
 
-    Start-ScheduledTask      -TaskName "GreenPhoenix-DiskSync"     # run now
-    Disable-ScheduledTask    -TaskName "GreenPhoenix-DiskSync"     # pause
-    Enable-ScheduledTask     -TaskName "GreenPhoenix-DiskSync"     # resume
-    Unregister-ScheduledTask -TaskName "GreenPhoenix-DiskSync" -Confirm:$false   # remove
-    Get-Content "C:\Users\Rob\Documents\Claude\Code\Green Phoenix\sync.log" -Tail 20   # see results
-    # change interval (e.g. 15 min):
-    Set-ScheduledTask -TaskName "GreenPhoenix-DiskSync" -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650))
+    crontab -e                            # add / edit / remove the schedule line
+    crontab -l                            # view scheduled jobs
+    ./scripts/run-sync.sh                 # run now (manual)
+    tail -n 20 sync.log                   # see results
+
+The schedule line (every 30 min):
+
+    */30 * * * * /home/robgreen/projects/Green\ Phoenix/scripts/run-sync.sh
 
 ### Refresh from the UI
 

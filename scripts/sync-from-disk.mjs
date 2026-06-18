@@ -15,7 +15,7 @@
  *     synced todos whose checkbox is gone get DELETED. Manual projects/todos
  *     (no external_path / no `disk-sync` tag) are never touched.
  *
- * Why local-only: a Vercel server can't read your C:\ drive. This script runs on
+ * Why local-only: a Vercel server can't read your local disk. This script runs on
  * your machine and writes to Supabase; the dashboard (local or prod) then displays it.
  *
  * Usage:
@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const SYNC_TAG = "disk-sync";
-const DEFAULT_CODE_ROOT = "C:\\Users\\Rob\\Documents\\Claude\\Code";
+const DEFAULT_CODE_ROOT = "/home/robgreen/projects";
 const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".vercel", "dist", "build"]);
 
 // ── tiny .env.local loader (no dotenv dependency) ───────────────────────────

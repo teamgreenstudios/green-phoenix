@@ -74,7 +74,7 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   indexes (`0006`); RLS initplan `(select …)` wrapping (`0007`). The `public` schema is clear of
   WARN-level Supabase advisors. Allowlist is **hardcoded in `is_allowed_user()`** (not a GUC). See `BACKLOG.md`.
 - **Disk sync (local CLI):** `scripts/sync-from-disk.mjs` (`npm run sync`; `-- --dry-run` to preview)
-  mirrors the folders under `SYNC_CODE_ROOT` (default `C:\Users\Rob\Documents\Claude\Code`) into
+  mirrors the folders under `SYNC_CODE_ROOT` (default `/home/robgreen/projects`) into
   `projects` (one per folder, keyed by `projects.external_path`, migration `0008`) and each folder's
   `BACKLOG.md` **GFM checkboxes** into that project's `todos` (tagged `disk-sync`). MIRROR mode:
   vanished folders → project archived, removed checkboxes → todo deleted; manual rows untouched.
