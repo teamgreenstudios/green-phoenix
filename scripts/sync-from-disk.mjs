@@ -11,6 +11,9 @@
  *     todos (tagged `disk-sync`); `[x]` marks them complete.
  *   - Job Hunter's local jobs/jobs.json is mirrored (read-only) into the `jobs`
  *     table (migration 0010), keyed by external_id.
+ *   - instascrape's data/assets/research/<shortcode>/transcript.txt files are
+ *     mirrored (read-only) into the `transcripts` table (migration 0012),
+ *     keyed by external_id (the reel shortcode).
  *   - MIRROR reconciliation: synced projects whose folder is gone get ARCHIVED;
  *     synced todos whose checkbox is gone get DELETED. Manual projects/todos
  *     (no external_path / no `disk-sync` tag) are never touched.
@@ -187,6 +190,67 @@ function parseJobs(file) {
     });
 }
 
+// ── instascrape transcripts → transcripts (read-only mirror) ────────────────
+function findInstascrape(codeRoot) {
+  const dir = process.env.SYNC_INSTASCRAPE_DIR
+    ? resolve(process.env.SYNC_INSTASCRAPE_DIR)
+    : join(codeRoot, "instascrape");
+  const researchDir = join(dir, "data", "assets", "research");
+  return existsSync(researchDir) ? { dir, researchDir } : null;
+}
+
+const AUDIO_LINE_RE = /^\s*\[\s*[\d.]+\]\s*\(audio\)\s*(.*\S)/;
+
+function parseTranscripts(researchDir) {
+  let entries;
+  try {
+    entries = readdirSync(researchDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    // Skip non-dirs and bookkeeping folders (e.g. _cache).
+    if (!e.isDirectory() || e.name.startsWith("_") || e.name.startsWith(".")) continue;
+    const file = join(researchDir, e.name, "transcript.txt");
+    if (!existsSync(file)) continue;
+    let content;
+    try {
+      content = readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    const lines = content.split(/\r?\n/);
+    // Title = first spoken (audio) line, else first non-empty line, else shortcode.
+    let title = null;
+    for (const ln of lines) {
+      const m = ln.match(AUDIO_LINE_RE);
+      if (m) {
+        title = m[1].trim();
+        break;
+      }
+    }
+    if (!title) title = (lines.find((l) => l.trim()) || e.name).trim();
+    if (title.length > 200) title = title.slice(0, 197) + "…";
+    let scrapedAt = null;
+    try {
+      scrapedAt = statSync(file).mtime.toISOString();
+    } catch {
+      /* leave null */
+    }
+    out.push({
+      external_id: e.name,
+      url: `https://www.instagram.com/reel/${e.name}/`,
+      title,
+      content,
+      char_count: content.length,
+      line_count: lines.filter((l) => l.trim()).length,
+      scraped_at: scrapedAt,
+    });
+  }
+  return out.sort((a, b) => a.external_id.localeCompare(b.external_id));
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   loadEnvLocal();
@@ -225,6 +289,14 @@ async function main() {
     );
   } else {
     console.log("Job Hunter jobs: no jobs.json found (skipping)");
+  }
+
+  const instaSrc = findInstascrape(codeRoot);
+  const transcripts = instaSrc ? parseTranscripts(instaSrc.researchDir) : [];
+  if (instaSrc) {
+    console.log(`instascrape transcripts: ${transcripts.length}`);
+  } else {
+    console.log("instascrape transcripts: no research/ dir found (skipping)");
   }
 
   if (DRY_RUN) {
@@ -272,6 +344,9 @@ async function main() {
     jobAdded: 0,
     jobUpdated: 0,
     jobDeleted: 0,
+    txAdded: 0,
+    txUpdated: 0,
+    txDeleted: 0,
   };
 
   // Existing synced projects for this user, keyed by path.
@@ -421,12 +496,59 @@ async function main() {
     }
   }
 
+  // 5) Reconcile instascrape transcripts (read-only mirror → transcripts table).
+  if (instaSrc) {
+    const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
+    const cols =
+      "id,external_id,project_id,url,title,content,char_count,line_count,scraped_at";
+    const { data: existingTx, error: txErr } = await supa
+      .from("transcripts")
+      .select(cols)
+      .eq("user_id", userId);
+    if (txErr) throw txErr;
+    const byExt = new Map(existingTx.map((t) => [t.external_id, t]));
+    const wantedExt = new Set(transcripts.map((t) => t.external_id));
+
+    for (const t of transcripts) {
+      const row = { ...t, project_id: isProjectId };
+      const cur = byExt.get(t.external_id);
+      if (!cur) {
+        const { error } = await supa
+          .from("transcripts")
+          .insert({ user_id: userId, ...row });
+        if (error) throw error;
+        stats.txAdded++;
+      } else {
+        // Content is the canonical signal; title/counts derive from it.
+        const changed =
+          (cur.project_id ?? null) !== (isProjectId ?? null) ||
+          (cur.content ?? null) !== (row.content ?? null) ||
+          (cur.title ?? null) !== (row.title ?? null) ||
+          (cur.url ?? null) !== (row.url ?? null);
+        if (changed) {
+          const { error } = await supa.from("transcripts").update(row).eq("id", cur.id);
+          if (error) throw error;
+          stats.txUpdated++;
+        }
+      }
+    }
+    for (const t of existingTx) {
+      if (!wantedExt.has(t.external_id)) {
+        await supa.from("transcripts").delete().eq("id", t.id);
+        stats.txDeleted++;
+      }
+    }
+  }
+
   console.log(
     `\n✔ Sync complete for ${email}:\n` +
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
       `  todos:    +${stats.todoAdded} added, ${stats.todoUpdated} updated, ${stats.todoDeleted} deleted\n` +
       (jobsSrc
         ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted\n`
+        : "") +
+      (instaSrc
+        ? `  transcripts: +${stats.txAdded} added, ${stats.txUpdated} updated, ${stats.txDeleted} deleted\n`
         : ""),
   );
 }

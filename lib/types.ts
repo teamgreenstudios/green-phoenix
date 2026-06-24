@@ -86,6 +86,22 @@ export interface Job {
   updated_at: string;
 }
 
+// instascrape transcript (read-only mirror, migration 0012).
+export interface Transcript {
+  id: string;
+  user_id: string;
+  external_id: string; // instagram reel shortcode (sync key)
+  project_id: string | null; // best-effort link to the synced "instascrape" project
+  url: string | null; // https://www.instagram.com/reel/<shortcode>/
+  title: string | null; // first spoken line (derived)
+  content: string | null; // full merged transcript.txt
+  char_count: number | null;
+  line_count: number | null;
+  scraped_at: string | null; // ISO timestamp (transcript.txt mtime)
+  created_at: string;
+  updated_at: string;
+}
+
 // Habit tracker (Phase 4).
 export interface Habit {
   id: string;

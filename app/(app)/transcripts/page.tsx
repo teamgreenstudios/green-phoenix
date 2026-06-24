@@ -1,0 +1,53 @@
+import { createClient } from "@/lib/supabase/server";
+import type { Transcript } from "@/lib/types";
+import { TranscriptsRefresh } from "@/components/transcripts/transcripts-refresh";
+import { TranscriptCard } from "@/components/transcripts/transcripts-list";
+
+export default async function TranscriptsPage() {
+  const supabase = await createClient();
+  // RLS scopes to the signed-in user. Mirrored from instascrape by `npm run sync`.
+  const { data } = await supabase
+    .from("transcripts")
+    .select("*")
+    .order("scraped_at", { ascending: false, nullsFirst: false })
+    .returns<Transcript[]>();
+  const transcripts = data ?? [];
+  // Freshness hint = the most recent row change (the sync bumps updated_at).
+  const lastUpdated = transcripts.length
+    ? transcripts.reduce(
+        (m, t) => (t.updated_at > m ? t.updated_at : m),
+        transcripts[0].updated_at,
+      )
+    : null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Transcripts</h1>
+          <p className="text-sm text-muted-foreground">
+            Instagram reel transcripts from instascrape (merged audio + on-screen
+            text). Read-only — scrape in instascrape, then run{" "}
+            <code>npm run sync</code>.
+          </p>
+        </div>
+        {transcripts.length > 0 && (
+          <TranscriptsRefresh lastUpdated={lastUpdated} />
+        )}
+      </div>
+
+      {transcripts.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-foreground/15 py-12 text-center text-sm text-muted-foreground">
+          No transcripts yet. Run an instascrape transcription, then{" "}
+          <code>npm run sync</code> to mirror it here.
+        </div>
+      ) : (
+        <ul className="grid gap-3">
+          {transcripts.map((t) => (
+            <TranscriptCard key={t.id} t={t} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

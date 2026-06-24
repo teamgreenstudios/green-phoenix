@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/projects", label: "Projects" },
   { href: "/todos", label: "Todos" },
   { href: "/jobs", label: "Jobs" },
+  { href: "/transcripts", label: "Transcripts" },
 ];
 
 export function MainNav() {

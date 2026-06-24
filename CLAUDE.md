@@ -103,6 +103,14 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   `JOB_STATUSES`/`TERMINAL`, and the badge map in `lib/jobs.ts` include it; the board renders
   `PIPELINE_STATUSES` (active only), so terminal statuses aren't columns. Keep these in lockstep
   with Job Hunter's status list.
+- **instascrape transcripts (read-only mirror):** the local instascrape app's
+  `data/assets/research/<shortcode>/transcript.txt` files are mirrored into a `transcripts` table
+  (migration `0012`) by the same `npm run sync` (reads `<SYNC_INSTASCRAPE_DIR or
+  CODE_ROOT/instascrape>/data/assets/research/*`; mirror reconcile by `external_id` = the reel
+  shortcode; `content` is the change signal). Surfaced **read-only** at **`/transcripts`** (list →
+  `app/(app)/transcripts/page.tsx`) and **`/transcripts/[id]`** (viewer; `(audio)`/`(screen)` lines
+  parsed + styled in `components/transcripts/transcript-view.tsx`). `Transcript` type in
+  `lib/types.ts`. No write-back. Same local-only sync model as jobs (Vercel can't read disk).
 - Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
   the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
   exploration without the user's go-ahead.
