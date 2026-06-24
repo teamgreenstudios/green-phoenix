@@ -307,6 +307,38 @@ function parseTranscripts(researchDir) {
   return out.sort((a, b) => a.external_id.localeCompare(b.external_id));
 }
 
+// instascrape prompts.json → prompt rows (MANY per post). One row per prompt, keyed
+// external_id = "<shortcode>#<index>" so re-syncs upsert and removed prompts delete cleanly.
+function parsePrompts(researchDir) {
+  let entries;
+  try {
+    entries = readdirSync(researchDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (!e.isDirectory() || e.name.startsWith("_") || e.name.startsWith(".")) continue;
+    const data = readJsonMaybe(join(researchDir, e.name, "prompts.json"));
+    if (!data || !Array.isArray(data.prompts)) continue;
+    const sourceUrl = typeof data.url === "string" ? data.url : null;
+    data.prompts.forEach((p, i) => {
+      if (!p || typeof p !== "object" || !p.text) return;
+      out.push({
+        external_id: `${e.name}#${i}`,
+        transcript_external_id: e.name,
+        source_url: sourceUrl,
+        title: String(p.title ?? ""),
+        content: String(p.text),
+        target_tool: String(p.target_tool ?? "any"),
+        category: String(p.category ?? "Other"),
+        tags: Array.isArray(p.tags) ? p.tags.filter((x) => typeof x === "string") : [],
+      });
+    });
+  }
+  return out.sort((a, b) => a.external_id.localeCompare(b.external_id));
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   loadEnvLocal();
@@ -349,8 +381,10 @@ async function main() {
 
   const instaSrc = findInstascrape(codeRoot);
   const transcripts = instaSrc ? parseTranscripts(instaSrc.researchDir) : [];
+  const prompts = instaSrc ? parsePrompts(instaSrc.researchDir) : [];
   if (instaSrc) {
     console.log(`instascrape transcripts: ${transcripts.length}`);
+    console.log(`instascrape prompts: ${prompts.length}`);
   } else {
     console.log("instascrape transcripts: no research/ dir found (skipping)");
   }
@@ -403,6 +437,9 @@ async function main() {
     txAdded: 0,
     txUpdated: 0,
     txDeleted: 0,
+    promptAdded: 0,
+    promptUpdated: 0,
+    promptDeleted: 0,
   };
 
   // Existing synced projects for this user, keyed by path.
@@ -605,6 +642,52 @@ async function main() {
     }
   }
 
+  // 6) Reconcile instascrape prompts (read-only mirror → prompts table; MANY per post).
+  if (instaSrc) {
+    const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
+    const cols =
+      "id,external_id,transcript_external_id,source_url,title,content,target_tool," +
+      "category,tags,project_id";
+    const { data: existingPr, error: prErr } = await supa
+      .from("prompts")
+      .select(cols)
+      .eq("user_id", userId);
+    if (prErr) throw prErr;
+    const byExt = new Map(existingPr.map((p) => [p.external_id, p]));
+    const wantedExt = new Set(prompts.map((p) => p.external_id));
+
+    for (const p of prompts) {
+      const row = { ...p, project_id: isProjectId };
+      const cur = byExt.get(p.external_id);
+      if (!cur) {
+        const { error } = await supa.from("prompts").insert({ user_id: userId, ...row });
+        if (error) throw error;
+        stats.promptAdded++;
+      } else {
+        const changed =
+          (cur.project_id ?? null) !== (isProjectId ?? null) ||
+          (cur.transcript_external_id ?? null) !== (row.transcript_external_id ?? null) ||
+          (cur.source_url ?? null) !== (row.source_url ?? null) ||
+          (cur.title ?? null) !== (row.title ?? null) ||
+          (cur.content ?? null) !== (row.content ?? null) ||
+          (cur.target_tool ?? null) !== (row.target_tool ?? null) ||
+          (cur.category ?? null) !== (row.category ?? null) ||
+          JSON.stringify(cur.tags ?? []) !== JSON.stringify(row.tags ?? []);
+        if (changed) {
+          const { error } = await supa.from("prompts").update(row).eq("id", cur.id);
+          if (error) throw error;
+          stats.promptUpdated++;
+        }
+      }
+    }
+    for (const p of existingPr) {
+      if (!wantedExt.has(p.external_id)) {
+        await supa.from("prompts").delete().eq("id", p.id);
+        stats.promptDeleted++;
+      }
+    }
+  }
+
   console.log(
     `\n✔ Sync complete for ${email}:\n` +
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
@@ -614,6 +697,9 @@ async function main() {
         : "") +
       (instaSrc
         ? `  transcripts: +${stats.txAdded} added, ${stats.txUpdated} updated, ${stats.txDeleted} deleted\n`
+        : "") +
+      (instaSrc
+        ? `  prompts:     +${stats.promptAdded} added, ${stats.promptUpdated} updated, ${stats.promptDeleted} deleted\n`
         : ""),
   );
 }

@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/todos", label: "Todos" },
   { href: "/jobs", label: "Jobs" },
   { href: "/transcripts", label: "Transcripts" },
+  { href: "/prompts", label: "Prompts" },
 ];
 
 export function MainNav() {
