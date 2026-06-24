@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { TranscriptListItem } from "@/lib/types";
 import { TranscriptsRefresh } from "@/components/transcripts/transcripts-refresh";
+import { TranscriptsOverview } from "@/components/transcripts/transcripts-overview";
 import { TranscriptsBrowser } from "@/components/transcripts/transcripts-browser";
 
 const LIST_COLS =
@@ -46,7 +47,10 @@ export default async function TranscriptsPage() {
           <code>npm run sync</code> to mirror it here.
         </div>
       ) : (
-        <TranscriptsBrowser items={transcripts} />
+        <>
+          <TranscriptsOverview items={transcripts} />
+          <TranscriptsBrowser items={transcripts} />
+        </>
       )}
     </div>
   );
