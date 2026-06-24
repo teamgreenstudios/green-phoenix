@@ -6,6 +6,17 @@ Source of truth for the build: `dashboard-spec.md`. Single-user "launcher + cock
 with an extensible tile system. Scoped one **Phase** at a time (see spec §10); build in
 **milestones and pause** after each so the user can run it.
 
+<!-- BEGIN:baseline-conventions (synced by scripts/sync-baseline.py — edit blocks there, then re-run) -->
+## Baseline conventions
+
+- **Always recommend when asking.** With `AskUserQuestion` or options in prose, name the option you'd pick, whether the lean is **strong** or **weak**, and a one-line why — no neutral menus.
+- **Build in milestones and pause** so the user can run each slice before you go deeper; don't start a major new phase without a go-ahead.
+- **Keep this file current** — folding session gotchas, non-obvious behavior, and decisions back into `CLAUDE.md` is a pre-commit step, not an afterthought.
+- **Verify behavior, not just types** — run `npm run build` + `npm run lint` before committing UI changes and actually exercise user-facing changes (local or live) before claiming they work. Small, reviewable commits; run tests on every change.
+- **Stack:** recent Next.js ≠ training data — read `node_modules/next/dist/docs/` before routing/data-fetching; middleware is `proxy.ts`, and `await` `params`/`searchParams`. Supabase via `@supabase/ssr` with `getUser()` (never `getSession()`). Publishable/anon key only in client code — never the service-role key (RLS enforces access). DB scripts use psycopg + `DATABASE_URL`. Never commit secrets or `.env`.
+- Keep answers concise and direct.
+<!-- END:baseline-conventions -->
+
 ## Stack (pinned)
 - Next.js 16 (App Router, Turbopack) + React 19, TypeScript, no `src/` dir, alias `@/*`.
 - Tailwind v4 (CSS config in `app/globals.css`) + **shadcn v4** → components on **Base UI**
@@ -87,7 +98,11 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   `app/(app)/jobs/page.tsx` + `components/jobs/*`) and a compact **`job_hunter` tile**
   (`components/tiles/defs/job-hunter.tsx`). Jobs load via `loadDashboard` into `TileData.jobs`;
   KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`). No editing/write-back
-  (local-only, deferred).
+  (local-only, deferred). Status `Expired` (Job Hunter archives dead postings there) is a
+  **terminal** status — migration `0011` adds it to the `jobs_status_check`; `JobStatus`,
+  `JOB_STATUSES`/`TERMINAL`, and the badge map in `lib/jobs.ts` include it; the board renders
+  `PIPELINE_STATUSES` (active only), so terminal statuses aren't columns. Keep these in lockstep
+  with Job Hunter's status list.
 - Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
   the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
   exploration without the user's go-ahead.

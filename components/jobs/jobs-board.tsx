@@ -1,17 +1,18 @@
 import type { Job } from "@/lib/types";
 import {
-  JOB_STATUSES,
+  PIPELINE_STATUSES,
   SCORE_TIER_CLASS,
   STATUS_BADGE_CLASS,
   scoreTier,
   sortByScoreDesc,
 } from "@/lib/jobs";
 
-/** Read-only Kanban pipeline (8 status columns, cards sorted by match score). */
+/** Read-only Kanban pipeline (active status columns, cards sorted by match score).
+ * Terminal statuses (Rejected/Passed/Expired) are not shown as columns. */
 export function JobsBoard({ jobs }: { jobs: Job[] }) {
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
-      {JOB_STATUSES.map((col) => {
+      {PIPELINE_STATUSES.map((col) => {
         const items = jobs
           .filter((j) => j.status === col)
           .sort(sortByScoreDesc);

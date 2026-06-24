@@ -59,7 +59,8 @@ export type JobStatus =
   | "Interviewing"
   | "Offer"
   | "Rejected"
-  | "Passed";
+  | "Passed"
+  | "Expired";
 
 export interface Job {
   id: string;

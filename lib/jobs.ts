@@ -5,7 +5,7 @@
  */
 import type { Job, JobStatus } from "@/lib/types";
 
-/** Pipeline column order (matches Job Hunter's Board). */
+/** Every status, in pipeline order (matches Job Hunter). */
 export const JOB_STATUSES: JobStatus[] = [
   "New",
   "Interested",
@@ -15,10 +15,17 @@ export const JOB_STATUSES: JobStatus[] = [
   "Offer",
   "Rejected",
   "Passed",
+  "Expired",
 ];
 
-/** Terminal statuses are excluded from the "active" pipeline count. */
-const TERMINAL: JobStatus[] = ["Rejected", "Passed"];
+/** Terminal statuses — excluded from the "active" count and the pipeline board.
+ * "Expired" = the posting is no longer live (archived by Job Hunter's /prune-jobs). */
+const TERMINAL: JobStatus[] = ["Rejected", "Passed", "Expired"];
+
+/** Columns shown on the read-only pipeline board (active statuses only). */
+export const PIPELINE_STATUSES: JobStatus[] = JOB_STATUSES.filter(
+  (s) => !TERMINAL.includes(s),
+);
 
 export function activeJobs(jobs: Job[]): Job[] {
   return jobs.filter((j) => !TERMINAL.includes(j.status));
@@ -62,6 +69,7 @@ export const STATUS_BADGE_CLASS: Record<JobStatus, string> = {
   Offer: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   Rejected: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   Passed: "bg-zinc-500/15 text-zinc-500 dark:text-zinc-400",
+  Expired: "bg-stone-500/15 text-stone-500 dark:text-stone-400",
 };
 
 /** Highest match score first (nulls last). */
