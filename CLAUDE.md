@@ -28,6 +28,13 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
 ## Conventions that bite
 - Root request guard is **`proxy.ts`** (Next 16 renamed `middleware.ts` → `proxy.ts`;
   exported function is `proxy`). The internal helper is still `lib/supabase/middleware.ts`.
+- **Local dev login needs a *secure origin*.** Supabase auth uses PKCE, whose code-challenge
+  needs `crypto.subtle` — browsers only expose that on `https://` or `localhost`, **never a bare
+  `http://<IP>`**. So Google "does nothing" when you hit the dev server at `http://10.x:3000` or a
+  Tailscale IP. From another machine, either SSH-forward (`ssh -L 3000:localhost:3000 box` → browse
+  `http://localhost:3000`) or serve it over HTTPS (`tailscale serve --https=443 http://127.0.0.1:3000`
+  → the `*.ts.net` URL). Whatever origin you open must also be in Supabase → Auth → URL Config →
+  **Redirect URLs** (the app builds `redirectTo` from `window.location.origin`).
 - Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (falls back to
   `_ANON_KEY`), and `ALLOWED_EMAILS` (server-only; the real access lock). See `.env.local.example`.
 - Email allowlist is enforced in `proxy.ts` (`lib/auth.ts#isAllowedEmail`) **and** in the DB:
