@@ -87,20 +87,48 @@ export interface Job {
 }
 
 // instascrape transcript (read-only mirror, migration 0012).
+export interface KeyPoint {
+  point: string; // short label
+  detail: string; // 1-3 sentence explanation
+}
+
 export interface Transcript {
   id: string;
   user_id: string;
-  external_id: string; // instagram reel shortcode (sync key)
+  external_id: string; // instagram shortcode (sync key)
   project_id: string | null; // best-effort link to the synced "instascrape" project
-  url: string | null; // https://www.instagram.com/reel/<shortcode>/
-  title: string | null; // first spoken line (derived)
+  url: string | null; // post URL (reel or /p/ carousel), from summary.json
+  title: string | null; // derived fallback title
+  headline: string | null; // summary.json headline (preferred title)
+  summary: string | null; // 2-4 sentence summary of the post
+  takeaways: string[]; // short highlights (jsonb)
+  key_points: KeyPoint[]; // exhaustive point-by-point breakdown (jsonb)
+  post_type: string | null; // reel | image | carousel
+  n_slides: number | null;
   content: string | null; // full merged transcript.txt
   char_count: number | null;
   line_count: number | null;
-  scraped_at: string | null; // ISO timestamp (transcript.txt mtime)
+  scraped_at: string | null; // ISO timestamp (newest of transcript.txt / summary.json mtime)
   created_at: string;
   updated_at: string;
 }
+
+// Tile projection for the list (omits the heavy `content`).
+export type TranscriptListItem = Pick<
+  Transcript,
+  | "id"
+  | "external_id"
+  | "url"
+  | "title"
+  | "headline"
+  | "summary"
+  | "takeaways"
+  | "post_type"
+  | "n_slides"
+  | "line_count"
+  | "scraped_at"
+  | "updated_at"
+>;
 
 // Habit tracker (Phase 4).
 export interface Habit {

@@ -201,6 +201,14 @@ function findInstascrape(codeRoot) {
 
 const AUDIO_LINE_RE = /^\s*\[\s*[\d.]+\]\s*\(audio\)\s*(.*\S)/;
 
+function readJsonMaybe(path) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 function parseTranscripts(researchDir) {
   let entries;
   try {
@@ -221,27 +229,64 @@ function parseTranscripts(researchDir) {
       continue;
     }
     const lines = content.split(/\r?\n/);
-    // Title = first spoken (audio) line, else first non-empty line, else shortcode.
-    let title = null;
-    for (const ln of lines) {
-      const m = ln.match(AUDIO_LINE_RE);
-      if (m) {
-        title = m[1].trim();
-        break;
+
+    // Readable digest from summary.json (self-contained: post meta + the summary).
+    const sumPath = join(researchDir, e.name, "summary.json");
+    const sum = readJsonMaybe(sumPath) || {};
+    const takeaways = Array.isArray(sum.takeaways)
+      ? sum.takeaways.filter((t) => typeof t === "string")
+      : [];
+    const keyPoints = Array.isArray(sum.key_points)
+      ? sum.key_points
+          .filter((p) => p && typeof p === "object")
+          .map((p) => ({ point: String(p.point ?? ""), detail: String(p.detail ?? "") }))
+      : [];
+    const headline = typeof sum.headline === "string" ? sum.headline.trim() : "";
+    const summaryText = typeof sum.summary === "string" ? sum.summary.trim() : "";
+    const postType = typeof sum.post_type === "string" ? sum.post_type : null;
+    const nSlides = Number.isInteger(sum.n_slides) ? sum.n_slides : null;
+
+    // Title: headline (best) → first spoken (audio) line → first real line
+    // (skip "=== Slide N ===" carousel headers) → shortcode.
+    let title = headline;
+    if (!title) {
+      for (const ln of lines) {
+        const m = ln.match(AUDIO_LINE_RE);
+        if (m) { title = m[1].trim(); break; }
       }
     }
-    if (!title) title = (lines.find((l) => l.trim()) || e.name).trim();
+    if (!title) {
+      const first = lines.find((l) => l.trim() && !l.trim().startsWith("==="));
+      title = (first || e.name).trim();
+    }
     if (title.length > 200) title = title.slice(0, 197) + "…";
+
+    // URL: trust summary.json (correct /reel/ vs /p/ carousel); else legacy reel fallback.
+    const url =
+      typeof sum.url === "string" && sum.url
+        ? sum.url
+        : `https://www.instagram.com/reel/${e.name}/`;
+
+    // Freshness = newest of transcript.txt / summary.json mtimes.
     let scrapedAt = null;
     try {
-      scrapedAt = statSync(file).mtime.toISOString();
+      let ms = statSync(file).mtimeMs;
+      if (existsSync(sumPath)) ms = Math.max(ms, statSync(sumPath).mtimeMs);
+      scrapedAt = new Date(ms).toISOString();
     } catch {
       /* leave null */
     }
+
     out.push({
       external_id: e.name,
-      url: `https://www.instagram.com/reel/${e.name}/`,
+      url,
       title,
+      headline: headline || null,
+      summary: summaryText || null,
+      takeaways,
+      key_points: keyPoints,
+      post_type: postType,
+      n_slides: nSlides,
       content,
       char_count: content.length,
       line_count: lines.filter((l) => l.trim()).length,
@@ -500,7 +545,8 @@ async function main() {
   if (instaSrc) {
     const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
     const cols =
-      "id,external_id,project_id,url,title,content,char_count,line_count,scraped_at";
+      "id,external_id,project_id,url,title,headline,summary,takeaways,key_points," +
+      "post_type,n_slides,content,char_count,line_count,scraped_at";
     const { data: existingTx, error: txErr } = await supa
       .from("transcripts")
       .select(cols)
@@ -519,12 +565,18 @@ async function main() {
         if (error) throw error;
         stats.txAdded++;
       } else {
-        // Content is the canonical signal; title/counts derive from it.
+        // Re-upsert when the transcript, the digest, or the post facets drift.
         const changed =
           (cur.project_id ?? null) !== (isProjectId ?? null) ||
           (cur.content ?? null) !== (row.content ?? null) ||
           (cur.title ?? null) !== (row.title ?? null) ||
-          (cur.url ?? null) !== (row.url ?? null);
+          (cur.url ?? null) !== (row.url ?? null) ||
+          (cur.headline ?? null) !== (row.headline ?? null) ||
+          (cur.summary ?? null) !== (row.summary ?? null) ||
+          (cur.post_type ?? null) !== (row.post_type ?? null) ||
+          (cur.n_slides ?? null) !== (row.n_slides ?? null) ||
+          JSON.stringify(cur.takeaways ?? []) !== JSON.stringify(row.takeaways ?? []) ||
+          JSON.stringify(cur.key_points ?? []) !== JSON.stringify(row.key_points ?? []);
         if (changed) {
           const { error } = await supa.from("transcripts").update(row).eq("id", cur.id);
           if (error) throw error;

@@ -1,16 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Transcript } from "@/lib/types";
+import type { TranscriptListItem } from "@/lib/types";
 import { TranscriptsRefresh } from "@/components/transcripts/transcripts-refresh";
 import { TranscriptCard } from "@/components/transcripts/transcripts-list";
+
+const LIST_COLS =
+  "id,external_id,url,title,headline,summary,takeaways,post_type,n_slides,line_count,scraped_at,updated_at";
 
 export default async function TranscriptsPage() {
   const supabase = await createClient();
   // RLS scopes to the signed-in user. Mirrored from instascrape by `npm run sync`.
+  // Tile projection only — the heavy `content` is fetched on the detail page.
   const { data } = await supabase
     .from("transcripts")
-    .select("*")
+    .select(LIST_COLS)
     .order("scraped_at", { ascending: false, nullsFirst: false })
-    .returns<Transcript[]>();
+    .returns<TranscriptListItem[]>();
   const transcripts = data ?? [];
   // Freshness hint = the most recent row change (the sync bumps updated_at).
   const lastUpdated = transcripts.length
@@ -26,9 +30,9 @@ export default async function TranscriptsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Transcripts</h1>
           <p className="text-sm text-muted-foreground">
-            Instagram reel transcripts from instascrape (merged audio + on-screen
-            text). Read-only — scrape in instascrape, then run{" "}
-            <code>npm run sync</code>.
+            Instagram post summaries from instascrape — headline, takeaways, and a
+            full breakdown, with the raw transcript a click away. Read-only — scrape
+            in instascrape, then run <code>npm run sync</code>.
           </p>
         </div>
         {transcripts.length > 0 && (

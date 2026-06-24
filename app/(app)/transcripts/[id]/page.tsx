@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Transcript } from "@/lib/types";
 import { TranscriptView } from "@/components/transcripts/transcript-view";
+import { TranscriptBreakdown } from "@/components/transcripts/transcript-breakdown";
 
 export default async function TranscriptDetailPage({
   params,
@@ -12,7 +13,7 @@ export default async function TranscriptDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  // RLS scopes to the signed-in user; external_id is the reel shortcode.
+  // RLS scopes to the signed-in user; external_id is the post shortcode.
   const { data } = await supabase
     .from("transcripts")
     .select("*")
@@ -21,6 +22,11 @@ export default async function TranscriptDetailPage({
     .returns<Transcript[]>();
   const transcript = data?.[0];
   if (!transcript) notFound();
+
+  const typeLabel =
+    transcript.post_type === "carousel" && transcript.n_slides
+      ? `carousel · ${transcript.n_slides} slides`
+      : transcript.post_type;
 
   return (
     <div className="space-y-5">
@@ -33,10 +39,11 @@ export default async function TranscriptDetailPage({
 
       <div>
         <h1 className="text-xl font-semibold tracking-tight">
-          {transcript.title || transcript.external_id}
+          {transcript.headline || transcript.title || transcript.external_id}
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="font-mono">{transcript.external_id}</span>
+          {typeLabel && <span>{typeLabel}</span>}
           {transcript.scraped_at && (
             <span>scraped {transcript.scraped_at.slice(0, 10)}</span>
           )}
@@ -56,7 +63,16 @@ export default async function TranscriptDetailPage({
         </div>
       </div>
 
-      <TranscriptView content={transcript.content ?? ""} />
+      <TranscriptBreakdown t={transcript} />
+
+      <details className="group rounded-xl border border-foreground/10">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
+          Raw transcript
+        </summary>
+        <div className="border-t border-foreground/10 p-3">
+          <TranscriptView content={transcript.content ?? ""} />
+        </div>
+      </details>
     </div>
   );
 }
