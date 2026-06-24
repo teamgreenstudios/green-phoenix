@@ -61,6 +61,18 @@ export default async function TranscriptDetailPage({
             </a>
           )}
         </div>
+        {transcript.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {transcript.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-foreground/15 px-2 py-0.5 text-[10px] text-muted-foreground"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <TranscriptBreakdown t={transcript} />

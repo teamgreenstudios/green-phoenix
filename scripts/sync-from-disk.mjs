@@ -245,6 +245,9 @@ function parseTranscripts(researchDir) {
     const summaryText = typeof sum.summary === "string" ? sum.summary.trim() : "";
     const postType = typeof sum.post_type === "string" ? sum.post_type : null;
     const nSlides = Number.isInteger(sum.n_slides) ? sum.n_slides : null;
+    const tags = Array.isArray(sum.tags)
+      ? sum.tags.filter((x) => typeof x === "string")
+      : [];
 
     // Title: headline (best) → first spoken (audio) line → first real line
     // (skip "=== Slide N ===" carousel headers) → shortcode.
@@ -287,6 +290,7 @@ function parseTranscripts(researchDir) {
       key_points: keyPoints,
       post_type: postType,
       n_slides: nSlides,
+      tags,
       content,
       char_count: content.length,
       line_count: lines.filter((l) => l.trim()).length,
@@ -546,7 +550,7 @@ async function main() {
     const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
     const cols =
       "id,external_id,project_id,url,title,headline,summary,takeaways,key_points," +
-      "post_type,n_slides,content,char_count,line_count,scraped_at";
+      "tags,post_type,n_slides,content,char_count,line_count,scraped_at";
     const { data: existingTx, error: txErr } = await supa
       .from("transcripts")
       .select(cols)
@@ -576,7 +580,8 @@ async function main() {
           (cur.post_type ?? null) !== (row.post_type ?? null) ||
           (cur.n_slides ?? null) !== (row.n_slides ?? null) ||
           JSON.stringify(cur.takeaways ?? []) !== JSON.stringify(row.takeaways ?? []) ||
-          JSON.stringify(cur.key_points ?? []) !== JSON.stringify(row.key_points ?? []);
+          JSON.stringify(cur.key_points ?? []) !== JSON.stringify(row.key_points ?? []) ||
+          JSON.stringify(cur.tags ?? []) !== JSON.stringify(row.tags ?? []);
         if (changed) {
           const { error } = await supa.from("transcripts").update(row).eq("id", cur.id);
           if (error) throw error;

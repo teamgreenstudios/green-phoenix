@@ -103,6 +103,7 @@ export interface Transcript {
   summary: string | null; // 2-4 sentence summary of the post
   takeaways: string[]; // short highlights (jsonb)
   key_points: KeyPoint[]; // exhaustive point-by-point breakdown (jsonb)
+  tags: string[]; // 2-5 reusable topic tags (jsonb)
   post_type: string | null; // reel | image | carousel
   n_slides: number | null;
   content: string | null; // full merged transcript.txt
@@ -124,6 +125,7 @@ export type TranscriptListItem = Pick<
   | "summary"
   | "takeaways"
   | "key_points" // included so search can reach the full breakdown (not just takeaways)
+  | "tags"
   | "post_type"
   | "n_slides"
   | "line_count"

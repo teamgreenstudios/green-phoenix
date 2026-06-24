@@ -32,6 +32,7 @@ function sortTitle(t: TranscriptListItem): string {
 export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
   const [q, setQ] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
+  const [tag, setTag] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("recent");
 
   // Only offer type filters that actually appear in the data.
@@ -42,10 +43,21 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
     return TYPES.filter((t) => s.has(t));
   }, [items]);
 
+  // All tags across the corpus, most-used first.
+  const allTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of items)
+      for (const tg of t.tags ?? []) counts.set(tg, (counts.get(tg) ?? 0) + 1);
+    return [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    );
+  }, [items]);
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const out = items.filter((t) => {
       if (type !== "all" && t.post_type !== type) return false;
+      if (tag && !(t.tags ?? []).includes(tag)) return false;
       if (needle && !haystack(t).includes(needle)) return false;
       return true;
     });
@@ -56,7 +68,7 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
       return sort === "oldest" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return out;
-  }, [items, q, type, sort]);
+  }, [items, q, type, tag, sort]);
 
   return (
     <div className="space-y-4">
@@ -97,6 +109,20 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
               <span className="text-muted-foreground">
                 {items.filter((t) => t.post_type === tp).length}
               </span>
+            </FilterPill>
+          ))}
+        </div>
+      )}
+
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {allTags.map(([tg, n]) => (
+            <FilterPill
+              key={tg}
+              active={tag === tg}
+              onClick={() => setTag(tag === tg ? null : tg)}
+            >
+              #{tg} <span className="text-muted-foreground">{n}</span>
             </FilterPill>
           ))}
         </div>
