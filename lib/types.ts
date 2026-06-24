@@ -123,6 +123,7 @@ export type TranscriptListItem = Pick<
   | "headline"
   | "summary"
   | "takeaways"
+  | "key_points" // included so search can reach the full breakdown (not just takeaways)
   | "post_type"
   | "n_slides"
   | "line_count"
