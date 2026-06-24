@@ -4,7 +4,7 @@ import { TranscriptsRefresh } from "@/components/transcripts/transcripts-refresh
 import { TranscriptsBrowser } from "@/components/transcripts/transcripts-browser";
 
 const LIST_COLS =
-  "id,external_id,url,title,headline,summary,takeaways,key_points,tags,post_type,n_slides,line_count,scraped_at,updated_at";
+  "id,external_id,url,title,headline,summary,takeaways,key_points,tags,refs,post_type,n_slides,line_count,scraped_at,updated_at";
 
 export default async function TranscriptsPage() {
   const supabase = await createClient();

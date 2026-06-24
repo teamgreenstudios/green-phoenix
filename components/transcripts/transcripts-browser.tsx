@@ -20,6 +20,7 @@ function haystack(t: TranscriptListItem): string {
     t.external_id,
     ...(t.takeaways ?? []),
     ...(t.key_points ?? []).flatMap((p) => [p.point, p.detail]),
+    ...(t.refs ?? []).map((r) => r.name),
   ]
     .join(" \n ")
     .toLowerCase();
@@ -33,6 +34,7 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
   const [q, setQ] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [tag, setTag] = useState<string | null>(null);
+  const [ref, setRef] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("recent");
 
   // Only offer type filters that actually appear in the data.
@@ -53,11 +55,30 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
     );
   }, [items]);
 
+  // Tools/links referenced across the corpus, most-cited first (by # of posts).
+  const allRefs = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of items) {
+      const seen = new Set<string>();
+      for (const r of t.refs ?? []) {
+        const k = r.name.toLowerCase();
+        if (!seen.has(k)) {
+          seen.add(k);
+          counts.set(k, (counts.get(k) ?? 0) + 1);
+        }
+      }
+    }
+    return [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    );
+  }, [items]);
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const out = items.filter((t) => {
       if (type !== "all" && t.post_type !== type) return false;
       if (tag && !(t.tags ?? []).includes(tag)) return false;
+      if (ref && !(t.refs ?? []).some((r) => r.name.toLowerCase() === ref)) return false;
       if (needle && !haystack(t).includes(needle)) return false;
       return true;
     });
@@ -68,7 +89,7 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
       return sort === "oldest" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return out;
-  }, [items, q, type, tag, sort]);
+  }, [items, q, type, tag, ref, sort]);
 
   return (
     <div className="space-y-4">
@@ -125,6 +146,30 @@ export function TranscriptsBrowser({ items }: { items: TranscriptListItem[] }) {
               #{tg} <span className="text-muted-foreground">{n}</span>
             </FilterPill>
           ))}
+        </div>
+      )}
+
+      {allRefs.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-muted-foreground">
+            Referenced across posts
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {allRefs.slice(0, 20).map(([name, n]) => (
+              <FilterPill
+                key={name}
+                active={ref === name}
+                onClick={() => setRef(ref === name ? null : name)}
+              >
+                {name} <span className="text-muted-foreground">{n}</span>
+              </FilterPill>
+            ))}
+            {allRefs.length > 20 && (
+              <span className="px-1 text-xs text-muted-foreground">
+                +{allRefs.length - 20} more — search to find them
+              </span>
+            )}
+          </div>
         </div>
       )}
 

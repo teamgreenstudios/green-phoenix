@@ -92,6 +92,11 @@ export interface KeyPoint {
   detail: string; // 1-3 sentence explanation
 }
 
+export interface Reference {
+  name: string; // canonical tool/app/product, or a link/handle/code verbatim
+  kind: string; // tool | link | handle | code | other
+}
+
 export interface Transcript {
   id: string;
   user_id: string;
@@ -104,6 +109,7 @@ export interface Transcript {
   takeaways: string[]; // short highlights (jsonb)
   key_points: KeyPoint[]; // exhaustive point-by-point breakdown (jsonb)
   tags: string[]; // 2-5 reusable topic tags (jsonb)
+  refs: Reference[]; // tools/links/handles/codes the post references (digest "references", jsonb)
   post_type: string | null; // reel | image | carousel
   n_slides: number | null;
   content: string | null; // full merged transcript.txt
@@ -126,6 +132,7 @@ export type TranscriptListItem = Pick<
   | "takeaways"
   | "key_points" // included so search can reach the full breakdown (not just takeaways)
   | "tags"
+  | "refs"
   | "post_type"
   | "n_slides"
   | "line_count"
