@@ -92,6 +92,11 @@ export interface KeyPoint {
   detail: string; // 1-3 sentence explanation
 }
 
+export interface Reference {
+  name: string; // canonical tool/app/product, or a link/handle/code verbatim
+  kind: string; // tool | link | handle | code | other
+}
+
 export interface Transcript {
   id: string;
   user_id: string;
@@ -103,6 +108,8 @@ export interface Transcript {
   summary: string | null; // 2-4 sentence summary of the post
   takeaways: string[]; // short highlights (jsonb)
   key_points: KeyPoint[]; // exhaustive point-by-point breakdown (jsonb)
+  tags: string[]; // 2-5 reusable topic tags (jsonb)
+  refs: Reference[]; // tools/links/handles/codes the post references (digest "references", jsonb)
   post_type: string | null; // reel | image | carousel
   n_slides: number | null;
   content: string | null; // full merged transcript.txt
@@ -112,6 +119,39 @@ export interface Transcript {
   created_at: string;
   updated_at: string;
 }
+
+// A single extracted prompt (read-only mirror of instascrape prompts.json; many per post).
+export interface Prompt {
+  id: string;
+  user_id: string;
+  external_id: string; // "<shortcode>#<index>" (sync key)
+  transcript_external_id: string | null; // source post shortcode (links to /transcripts)
+  source_url: string | null;
+  title: string | null;
+  content: string | null; // the verbatim prompt
+  target_tool: string | null; // claude | chatgpt | gemini | any | ...
+  category: string | null; // one of the fixed taxonomy
+  tags: string[]; // freeform scenario tags (jsonb)
+  project_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// List projection — keeps `content` (prompts are short; the list shows + copies the text).
+export type PromptListItem = Pick<
+  Prompt,
+  | "id"
+  | "external_id"
+  | "transcript_external_id"
+  | "source_url"
+  | "title"
+  | "content"
+  | "target_tool"
+  | "category"
+  | "tags"
+  | "created_at"
+  | "updated_at"
+>;
 
 // Tile projection for the list (omits the heavy `content`).
 export type TranscriptListItem = Pick<
@@ -123,6 +163,9 @@ export type TranscriptListItem = Pick<
   | "headline"
   | "summary"
   | "takeaways"
+  | "key_points" // included so search can reach the full breakdown (not just takeaways)
+  | "tags"
+  | "refs"
   | "post_type"
   | "n_slides"
   | "line_count"

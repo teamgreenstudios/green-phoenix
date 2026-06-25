@@ -59,6 +59,19 @@ export function TranscriptCard({ t }: { t: TranscriptListItem }) {
           </div>
         )}
 
+        {t.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {t.tags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-foreground/15 px-2 py-0.5 text-[10px] text-muted-foreground"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="mt-2 text-xs text-muted-foreground">
           <span className="font-mono">{t.external_id}</span>
           {date && <> · {date}</>}

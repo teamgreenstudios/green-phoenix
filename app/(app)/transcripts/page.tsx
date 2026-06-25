@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import type { TranscriptListItem } from "@/lib/types";
 import { TranscriptsRefresh } from "@/components/transcripts/transcripts-refresh";
-import { TranscriptCard } from "@/components/transcripts/transcripts-list";
+import { TranscriptsOverview } from "@/components/transcripts/transcripts-overview";
+import { TranscriptsBrowser } from "@/components/transcripts/transcripts-browser";
 
 const LIST_COLS =
-  "id,external_id,url,title,headline,summary,takeaways,post_type,n_slides,line_count,scraped_at,updated_at";
+  "id,external_id,url,title,headline,summary,takeaways,key_points,tags,refs,post_type,n_slides,line_count,scraped_at,updated_at";
 
 export default async function TranscriptsPage() {
   const supabase = await createClient();
@@ -46,11 +47,10 @@ export default async function TranscriptsPage() {
           <code>npm run sync</code> to mirror it here.
         </div>
       ) : (
-        <ul className="grid gap-3">
-          {transcripts.map((t) => (
-            <TranscriptCard key={t.id} t={t} />
-          ))}
-        </ul>
+        <>
+          <TranscriptsOverview items={transcripts} />
+          <TranscriptsBrowser items={transcripts} />
+        </>
       )}
     </div>
   );

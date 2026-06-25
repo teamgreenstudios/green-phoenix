@@ -5,6 +5,7 @@ import type { Transcript } from "@/lib/types";
 export function TranscriptBreakdown({ t }: { t: Transcript }) {
   const keyPoints = t.key_points ?? [];
   const takeaways = t.takeaways ?? [];
+  const refs = t.refs ?? [];
   const hasDigest = Boolean(t.summary) || keyPoints.length > 0 || takeaways.length > 0;
 
   if (!hasDigest) {
@@ -69,6 +70,25 @@ export function TranscriptBreakdown({ t }: { t: Transcript }) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {refs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold">Referenced</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {refs.map((r, i) => (
+              <span
+                key={i}
+                className="rounded-md border border-foreground/15 px-2 py-0.5 text-xs text-foreground/70"
+              >
+                {r.name}
+                {r.kind && r.kind !== "other" && (
+                  <span className="text-muted-foreground"> · {r.kind}</span>
+                )}
+              </span>
+            ))}
+          </div>
         </section>
       )}
     </div>

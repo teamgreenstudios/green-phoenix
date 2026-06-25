@@ -59,6 +59,26 @@ function loadEnvLocal() {
   }
 }
 
+// ── jsonb-safe comparison ────────────────────────────────────────────────────
+// Postgres jsonb doesn't preserve object-key order (keys are normalized by length
+// then bytewise), so PostgREST can hand back {kind, name} for a row we built as
+// {name, kind}. A raw JSON.stringify compare would then read "changed" every run
+// and fire a needless UPDATE. Canonicalize (sort object keys recursively, keep
+// array order) before comparing so key-order differences are ignored.
+function canonicalJson(v) {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
+function jsonEq(a, b) {
+  return canonicalJson(a) === canonicalJson(b);
+}
+
 // ── folder scan ─────────────────────────────────────────────────────────────
 function listProjectFolders(root, ignore) {
   let entries;
@@ -245,6 +265,15 @@ function parseTranscripts(researchDir) {
     const summaryText = typeof sum.summary === "string" ? sum.summary.trim() : "";
     const postType = typeof sum.post_type === "string" ? sum.post_type : null;
     const nSlides = Number.isInteger(sum.n_slides) ? sum.n_slides : null;
+    const tags = Array.isArray(sum.tags)
+      ? sum.tags.filter((x) => typeof x === "string")
+      : [];
+    // digest "references" → column "refs" (references is a reserved SQL word).
+    const refs = Array.isArray(sum.references)
+      ? sum.references
+          .filter((r) => r && typeof r === "object" && r.name)
+          .map((r) => ({ name: String(r.name), kind: String(r.kind ?? "other") }))
+      : [];
 
     // Title: headline (best) → first spoken (audio) line → first real line
     // (skip "=== Slide N ===" carousel headers) → shortcode.
@@ -287,10 +316,44 @@ function parseTranscripts(researchDir) {
       key_points: keyPoints,
       post_type: postType,
       n_slides: nSlides,
+      tags,
+      refs,
       content,
       char_count: content.length,
       line_count: lines.filter((l) => l.trim()).length,
       scraped_at: scrapedAt,
+    });
+  }
+  return out.sort((a, b) => a.external_id.localeCompare(b.external_id));
+}
+
+// instascrape prompts.json → prompt rows (MANY per post). One row per prompt, keyed
+// external_id = "<shortcode>#<index>" so re-syncs upsert and removed prompts delete cleanly.
+function parsePrompts(researchDir) {
+  let entries;
+  try {
+    entries = readdirSync(researchDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (!e.isDirectory() || e.name.startsWith("_") || e.name.startsWith(".")) continue;
+    const data = readJsonMaybe(join(researchDir, e.name, "prompts.json"));
+    if (!data || !Array.isArray(data.prompts)) continue;
+    const sourceUrl = typeof data.url === "string" ? data.url : null;
+    data.prompts.forEach((p, i) => {
+      if (!p || typeof p !== "object" || !p.text) return;
+      out.push({
+        external_id: `${e.name}#${i}`,
+        transcript_external_id: e.name,
+        source_url: sourceUrl,
+        title: String(p.title ?? ""),
+        content: String(p.text),
+        target_tool: String(p.target_tool ?? "any"),
+        category: String(p.category ?? "Other"),
+        tags: Array.isArray(p.tags) ? p.tags.filter((x) => typeof x === "string") : [],
+      });
     });
   }
   return out.sort((a, b) => a.external_id.localeCompare(b.external_id));
@@ -338,8 +401,10 @@ async function main() {
 
   const instaSrc = findInstascrape(codeRoot);
   const transcripts = instaSrc ? parseTranscripts(instaSrc.researchDir) : [];
+  const prompts = instaSrc ? parsePrompts(instaSrc.researchDir) : [];
   if (instaSrc) {
     console.log(`instascrape transcripts: ${transcripts.length}`);
+    console.log(`instascrape prompts: ${prompts.length}`);
   } else {
     console.log("instascrape transcripts: no research/ dir found (skipping)");
   }
@@ -392,6 +457,9 @@ async function main() {
     txAdded: 0,
     txUpdated: 0,
     txDeleted: 0,
+    promptAdded: 0,
+    promptUpdated: 0,
+    promptDeleted: 0,
   };
 
   // Existing synced projects for this user, keyed by path.
@@ -546,7 +614,7 @@ async function main() {
     const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
     const cols =
       "id,external_id,project_id,url,title,headline,summary,takeaways,key_points," +
-      "post_type,n_slides,content,char_count,line_count,scraped_at";
+      "tags,refs,post_type,n_slides,content,char_count,line_count,scraped_at";
     const { data: existingTx, error: txErr } = await supa
       .from("transcripts")
       .select(cols)
@@ -575,8 +643,10 @@ async function main() {
           (cur.summary ?? null) !== (row.summary ?? null) ||
           (cur.post_type ?? null) !== (row.post_type ?? null) ||
           (cur.n_slides ?? null) !== (row.n_slides ?? null) ||
-          JSON.stringify(cur.takeaways ?? []) !== JSON.stringify(row.takeaways ?? []) ||
-          JSON.stringify(cur.key_points ?? []) !== JSON.stringify(row.key_points ?? []);
+          !jsonEq(cur.takeaways ?? [], row.takeaways ?? []) ||
+          !jsonEq(cur.key_points ?? [], row.key_points ?? []) ||
+          !jsonEq(cur.tags ?? [], row.tags ?? []) ||
+          !jsonEq(cur.refs ?? [], row.refs ?? []);
         if (changed) {
           const { error } = await supa.from("transcripts").update(row).eq("id", cur.id);
           if (error) throw error;
@@ -592,6 +662,52 @@ async function main() {
     }
   }
 
+  // 6) Reconcile instascrape prompts (read-only mirror → prompts table; MANY per post).
+  if (instaSrc) {
+    const isProjectId = projectIdByPath.get(instaSrc.dir) ?? null;
+    const cols =
+      "id,external_id,transcript_external_id,source_url,title,content,target_tool," +
+      "category,tags,project_id";
+    const { data: existingPr, error: prErr } = await supa
+      .from("prompts")
+      .select(cols)
+      .eq("user_id", userId);
+    if (prErr) throw prErr;
+    const byExt = new Map(existingPr.map((p) => [p.external_id, p]));
+    const wantedExt = new Set(prompts.map((p) => p.external_id));
+
+    for (const p of prompts) {
+      const row = { ...p, project_id: isProjectId };
+      const cur = byExt.get(p.external_id);
+      if (!cur) {
+        const { error } = await supa.from("prompts").insert({ user_id: userId, ...row });
+        if (error) throw error;
+        stats.promptAdded++;
+      } else {
+        const changed =
+          (cur.project_id ?? null) !== (isProjectId ?? null) ||
+          (cur.transcript_external_id ?? null) !== (row.transcript_external_id ?? null) ||
+          (cur.source_url ?? null) !== (row.source_url ?? null) ||
+          (cur.title ?? null) !== (row.title ?? null) ||
+          (cur.content ?? null) !== (row.content ?? null) ||
+          (cur.target_tool ?? null) !== (row.target_tool ?? null) ||
+          (cur.category ?? null) !== (row.category ?? null) ||
+          !jsonEq(cur.tags ?? [], row.tags ?? []);
+        if (changed) {
+          const { error } = await supa.from("prompts").update(row).eq("id", cur.id);
+          if (error) throw error;
+          stats.promptUpdated++;
+        }
+      }
+    }
+    for (const p of existingPr) {
+      if (!wantedExt.has(p.external_id)) {
+        await supa.from("prompts").delete().eq("id", p.id);
+        stats.promptDeleted++;
+      }
+    }
+  }
+
   console.log(
     `\n✔ Sync complete for ${email}:\n` +
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
@@ -601,6 +717,9 @@ async function main() {
         : "") +
       (instaSrc
         ? `  transcripts: +${stats.txAdded} added, ${stats.txUpdated} updated, ${stats.txDeleted} deleted\n`
+        : "") +
+      (instaSrc
+        ? `  prompts:     +${stats.promptAdded} added, ${stats.promptUpdated} updated, ${stats.promptDeleted} deleted\n`
         : ""),
   );
 }
