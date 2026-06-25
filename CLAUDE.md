@@ -118,6 +118,17 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   `app/(app)/transcripts/page.tsx`) and **`/transcripts/[id]`** (viewer; `(audio)`/`(screen)` lines
   parsed + styled in `components/transcripts/transcript-view.tsx`). `Transcript` type in
   `lib/types.ts`. No write-back. Same local-only sync model as jobs (Vercel can't read disk).
+- **instascrape prompts (mirror + soft-delete):** verbatim copy-paste prompts extracted by
+  instascrape (`<shortcode>/prompts.json`) are mirrored into a `prompts` table (migration `0016`,
+  MANY per post, key `external_id="<shortcode>#<index>"`) by `npm run sync`; surfaced at
+  **`/prompts`** (`app/(app)/prompts/page.tsx` + `components/prompts/prompts-browser.tsx`:
+  category/tool/tag filters + search + per-prompt Copy). **Delete = soft-delete:** a `hidden`
+  boolean (migration `0017`) flagged via Server Actions in `app/(app)/prompts/actions.ts`
+  (`hidePrompt`/`restorePrompt`); the browser filters it out and has a **"Show hidden (N)" →
+  Restore** view. `hidden` **survives the sync** — the mirror keeps the row (so it's never
+  re-inserted) and its update path writes only mirrored columns, never `hidden`; so **the sync
+  needed no changes**. Apply `0017` before deploying (the page selects `hidden`; absent column ⇒
+  empty list), same as the `0015`/`0016` episodes.
 - Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
   the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
   exploration without the user's go-ahead.

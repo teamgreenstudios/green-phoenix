@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { Search, Copy, Check, ExternalLink } from "lucide-react";
+import { Search, Copy, Check, ExternalLink, Trash2, RotateCcw } from "lucide-react";
 import type { PromptListItem } from "@/lib/types";
+import { hidePrompt, restorePrompt } from "@/app/(app)/prompts/actions";
 
 type SortKey = "recent" | "oldest" | "title";
 
@@ -28,19 +29,44 @@ export function PromptsBrowser({ items }: { items: PromptListItem[] }) {
   const [tool, setTool] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("recent");
+  const [showHidden, setShowHidden] = useState(false);
+  // Optimistic hidden state, keyed by id — applied over the server value until revalidation lands.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [, startTransition] = useTransition();
 
-  const categories = useMemo(() => countBy(items, (p) => p.category), [items]);
-  const tools = useMemo(() => countBy(items, (p) => p.target_tool), [items]);
+  const isHidden = useCallback(
+    (p: PromptListItem) => overrides[p.id] ?? p.hidden,
+    [overrides],
+  );
+  const hiddenCount = useMemo(() => items.filter(isHidden).length, [items, isHidden]);
+
+  // The active universe: visible prompts by default, or the hidden set in "Show hidden" mode.
+  const universe = useMemo(
+    () => items.filter((p) => (showHidden ? isHidden(p) : !isHidden(p))),
+    [items, isHidden, showHidden],
+  );
+
+  const setHidden = (p: PromptListItem, next: boolean) => {
+    setOverrides((o) => ({ ...o, [p.id]: next }));
+    startTransition(async () => {
+      const res = next ? await hidePrompt(p.id) : await restorePrompt(p.id);
+      if (res?.error) setOverrides((o) => ({ ...o, [p.id]: !next })); // revert on failure
+    });
+  };
+
+  const categories = useMemo(() => countBy(universe, (p) => p.category), [universe]);
+  const tools = useMemo(() => countBy(universe, (p) => p.target_tool), [universe]);
   const allTags = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of items)
+    for (const p of universe)
       for (const t of new Set(p.tags ?? [])) m.set(t, (m.get(t) ?? 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [items]);
+  }, [universe]);
 
+  const items_ = universe; // local alias: filters/sort below operate on the active universe
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const out = items.filter((p) => {
+    const out = items_.filter((p) => {
       if (category && p.category !== category) return false;
       if (tool && p.target_tool !== tool) return false;
       if (tag && !(p.tags ?? []).includes(tag)) return false;
@@ -55,7 +81,7 @@ export function PromptsBrowser({ items }: { items: PromptListItem[] }) {
       return sort === "oldest" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return out;
-  }, [items, q, category, tool, tag, sort]);
+  }, [items_, q, category, tool, tag, sort]);
 
   return (
     <div className="space-y-4">
@@ -83,7 +109,7 @@ export function PromptsBrowser({ items }: { items: PromptListItem[] }) {
 
       <FilterRow label="Category">
         <FilterPill active={!category} onClick={() => setCategory(null)}>
-          All <span className="text-muted-foreground">{items.length}</span>
+          All <span className="text-muted-foreground">{items_.length}</span>
         </FilterPill>
         {categories.map(([c, n]) => (
           <FilterPill key={c} active={category === c} onClick={() => setCategory(category === c ? null : c)}>
@@ -117,20 +143,39 @@ export function PromptsBrowser({ items }: { items: PromptListItem[] }) {
         </FilterRow>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        {shown.length === items.length
-          ? `${items.length} prompts`
-          : `${shown.length} of ${items.length}`}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {showHidden
+            ? `${shown.length} hidden`
+            : shown.length === items_.length
+              ? `${items_.length} prompts`
+              : `${shown.length} of ${items_.length}`}
+        </p>
+        {(hiddenCount > 0 || showHidden) && (
+          <button
+            type="button"
+            onClick={() => setShowHidden((v) => !v)}
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            {showHidden ? "← Back to prompts" : `Show hidden (${hiddenCount})`}
+          </button>
+        )}
+      </div>
 
       {shown.length === 0 ? (
         <div className="rounded-xl border border-dashed border-foreground/15 py-10 text-center text-sm text-muted-foreground">
-          No prompts match your filters.
+          {showHidden ? "No hidden prompts." : "No prompts match your filters."}
         </div>
       ) : (
         <ul className="grid gap-3">
           {shown.map((p) => (
-            <PromptCard key={p.id} p={p} />
+            <PromptCard
+              key={p.id}
+              p={p}
+              hidden={showHidden}
+              onHide={() => setHidden(p, true)}
+              onRestore={() => setHidden(p, false)}
+            />
           ))}
         </ul>
       )}
@@ -138,7 +183,17 @@ export function PromptsBrowser({ items }: { items: PromptListItem[] }) {
   );
 }
 
-function PromptCard({ p }: { p: PromptListItem }) {
+function PromptCard({
+  p,
+  hidden,
+  onHide,
+  onRestore,
+}: {
+  p: PromptListItem;
+  hidden: boolean;
+  onHide: () => void;
+  onRestore: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const text = p.content ?? "";
@@ -172,15 +227,38 @@ function PromptCard({ p }: { p: PromptListItem }) {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={copy}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-foreground/15 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-          title="Copy prompt"
-        >
-          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={copy}
+            className="inline-flex items-center gap-1 rounded-md border border-foreground/15 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            title="Copy prompt"
+          >
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {hidden ? (
+            <button
+              type="button"
+              onClick={onRestore}
+              className="inline-flex items-center gap-1 rounded-md border border-foreground/15 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              title="Restore prompt"
+            >
+              <RotateCcw className="size-3.5" />
+              Restore
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onHide}
+              className="inline-flex items-center justify-center rounded-md border border-foreground/15 p-1.5 text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+              title="Hide prompt (removes it from the list; restorable via “Show hidden”)"
+              aria-label="Hide prompt"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <pre
