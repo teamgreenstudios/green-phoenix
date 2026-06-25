@@ -59,6 +59,26 @@ function loadEnvLocal() {
   }
 }
 
+// ── jsonb-safe comparison ────────────────────────────────────────────────────
+// Postgres jsonb doesn't preserve object-key order (keys are normalized by length
+// then bytewise), so PostgREST can hand back {kind, name} for a row we built as
+// {name, kind}. A raw JSON.stringify compare would then read "changed" every run
+// and fire a needless UPDATE. Canonicalize (sort object keys recursively, keep
+// array order) before comparing so key-order differences are ignored.
+function canonicalJson(v) {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
+function jsonEq(a, b) {
+  return canonicalJson(a) === canonicalJson(b);
+}
+
 // ── folder scan ─────────────────────────────────────────────────────────────
 function listProjectFolders(root, ignore) {
   let entries;
@@ -623,10 +643,10 @@ async function main() {
           (cur.summary ?? null) !== (row.summary ?? null) ||
           (cur.post_type ?? null) !== (row.post_type ?? null) ||
           (cur.n_slides ?? null) !== (row.n_slides ?? null) ||
-          JSON.stringify(cur.takeaways ?? []) !== JSON.stringify(row.takeaways ?? []) ||
-          JSON.stringify(cur.key_points ?? []) !== JSON.stringify(row.key_points ?? []) ||
-          JSON.stringify(cur.tags ?? []) !== JSON.stringify(row.tags ?? []) ||
-          JSON.stringify(cur.refs ?? []) !== JSON.stringify(row.refs ?? []);
+          !jsonEq(cur.takeaways ?? [], row.takeaways ?? []) ||
+          !jsonEq(cur.key_points ?? [], row.key_points ?? []) ||
+          !jsonEq(cur.tags ?? [], row.tags ?? []) ||
+          !jsonEq(cur.refs ?? [], row.refs ?? []);
         if (changed) {
           const { error } = await supa.from("transcripts").update(row).eq("id", cur.id);
           if (error) throw error;
@@ -672,7 +692,7 @@ async function main() {
           (cur.content ?? null) !== (row.content ?? null) ||
           (cur.target_tool ?? null) !== (row.target_tool ?? null) ||
           (cur.category ?? null) !== (row.category ?? null) ||
-          JSON.stringify(cur.tags ?? []) !== JSON.stringify(row.tags ?? []);
+          !jsonEq(cur.tags ?? [], row.tags ?? []);
         if (changed) {
           const { error } = await supa.from("prompts").update(row).eq("id", cur.id);
           if (error) throw error;
