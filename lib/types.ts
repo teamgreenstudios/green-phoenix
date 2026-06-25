@@ -133,6 +133,7 @@ export interface Prompt {
   category: string | null; // one of the fixed taxonomy
   tags: string[]; // freeform scenario tags (jsonb)
   project_id: string | null;
+  hidden: boolean; // soft-delete: hidden from the tab, survives sync (migration 0017)
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +150,7 @@ export type PromptListItem = Pick<
   | "target_tool"
   | "category"
   | "tags"
+  | "hidden"
   | "created_at"
   | "updated_at"
 >;
