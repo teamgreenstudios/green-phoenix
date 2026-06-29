@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format-time";
+import { useMounted } from "@/lib/hooks/use-mounted";
 
 /**
  * Re-queries the latest synced jobs from Supabase via router.refresh() — re-runs
@@ -24,10 +25,9 @@ export function JobsRefresh({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  // Only show relative time after mount — see the hydration note in the
-  // accompanying explanation (server "now" != client "now").
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Only show relative time after mount (server "now" != client "now"), to avoid a
+  // hydration mismatch.
+  const mounted = useMounted();
 
   const refresh = () => startTransition(() => router.refresh());
 

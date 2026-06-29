@@ -34,6 +34,8 @@ export function AddEditTileDialog(props: Props) {
   const [config, setConfig] = useState<unknown>({});
   const [saving, setSaving] = useState(false);
 
+  // Seed the form each time it opens (intentional prop→state sync on open).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     if (props.mode === "edit") {
@@ -47,6 +49,7 @@ export function AddEditTileDialog(props: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const def = type ? getTileDef(type) : undefined;
   const ConfigForm = def?.ConfigForm;

@@ -41,6 +41,8 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return;
     let active = true;
+    // Intentional: show the spinner while we (re)load the searchable set on open.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     loadCommandData()
       .then((d) => active && setData(d))

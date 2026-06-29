@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format-time";
+import { useMounted } from "@/lib/hooks/use-mounted";
 
 /**
  * Re-queries the latest synced transcripts from Supabase via router.refresh().
@@ -20,8 +21,7 @@ export function TranscriptsRefresh({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   return (
     <div className="flex items-center gap-2">
