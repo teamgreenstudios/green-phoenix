@@ -50,7 +50,8 @@ export interface Todo {
   updated_at: string;
 }
 
-// Jobs (Phase 5 — Job Hunter read-only mirror; populated by scripts/sync-from-disk.mjs).
+// Jobs (Job Hunter two-way sync; scouting fields disk→DB, pipeline fields board-co-owned
+// and written back to jobs.json — see scripts/sync-from-disk.mjs + migration 0018).
 export type JobStatus =
   | "New"
   | "Interested"
@@ -82,6 +83,9 @@ export interface Job {
   next_action: string | null;
   notes: string | null;
   application_folder: string | null;
+  has_resume: boolean; // derived by the sync: applications/<folder>/resume.docx exists
+  has_cover_letter: boolean; // derived by the sync: applications/<folder>/cover-letter.docx exists
+  board_dirty: boolean; // the board edited pipeline fields; sync pushes them back to jobs.json
   created_at: string;
   updated_at: string;
 }

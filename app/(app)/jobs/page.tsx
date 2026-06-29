@@ -26,8 +26,8 @@ export default async function JobsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Job Hunter</h1>
           <p className="text-sm text-muted-foreground">
-            Your job-search pipeline, mirrored from Job Hunter. Read-only — edit
-            in Job Hunter or via Claude, then run <code>npm run sync</code>.
+            Your job-search pipeline. Drag a card or use its ⋯ menu to change
+            status; <code>npm run sync</code> writes changes back to Job Hunter.
           </p>
         </div>
         {jobs.length > 0 && <JobsRefresh lastUpdated={lastUpdated} />}

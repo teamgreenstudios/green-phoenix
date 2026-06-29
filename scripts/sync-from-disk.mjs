@@ -32,6 +32,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const SYNC_TAG = "disk-sync";
@@ -138,7 +139,10 @@ function parseBacklog(file) {
   return todos;
 }
 
-// ── Job Hunter jobs.json → jobs (read-only mirror) ───────────────────────────
+// ── Job Hunter jobs.json ←→ jobs (two-way sync) ──────────────────────────────
+// Keep this list in lockstep with lib/jobs.ts, the 0011 status CHECK, and
+// Job Hunter's tracker.py STATUSES. "Expired" (a terminal status set by
+// /prune-jobs) was previously missing here, so expired jobs coerced to "New".
 const JOB_STATUSES = [
   "New",
   "Interested",
@@ -148,9 +152,12 @@ const JOB_STATUSES = [
   "Offer",
   "Rejected",
   "Passed",
+  "Expired",
 ];
-// Columns the sync owns (compared to decide insert vs update vs no-op).
-const JOB_FIELDS = [
+// Scouting fields — Job Hunter owns these; always mirrored disk→DB. `application_folder`
+// is set only by /tailor-application; has_resume/has_cover_letter are derived by statting
+// the applications/ folder (see docFlags), so the board can show doc badges.
+const SCOUTING_FIELDS = [
   "company",
   "title",
   "location",
@@ -160,13 +167,26 @@ const JOB_FIELDS = [
   "match_score",
   "why_it_fits",
   "salary",
-  "status",
   "date_found",
-  "date_applied",
-  "next_action",
-  "notes",
   "application_folder",
+  "has_resume",
+  "has_cover_letter",
 ];
+// Pipeline fields — the Green Phoenix board co-owns these. Mirrored disk→DB only when the
+// row isn't board_dirty; when board_dirty, the board's values win and are pushed back into
+// jobs.json (via tracker.py) and the flag cleared. See the reconcile in main().
+const PIPELINE_FIELDS = ["status", "date_applied", "next_action", "notes"];
+
+// Does this job already have generated docs on disk? Drives the board's "Resume ✓ /
+// Cover letter ✓" badges. Mirrors what /tailor-application writes into the app folder.
+function docFlags(dir, applicationFolder) {
+  if (!applicationFolder) return { has_resume: false, has_cover_letter: false };
+  const base = join(dir, "applications", applicationFolder);
+  return {
+    has_resume: existsSync(join(base, "resume.docx")),
+    has_cover_letter: existsSync(join(base, "cover-letter.docx")),
+  };
+}
 
 function findJobsJson(codeRoot) {
   const dir = process.env.SYNC_JOBHUNTER_DIR
@@ -176,7 +196,7 @@ function findJobsJson(codeRoot) {
   return existsSync(file) ? { dir, file } : null;
 }
 
-function parseJobs(file) {
+function parseJobs(file, dir) {
   let raw;
   try {
     raw = JSON.parse(readFileSync(file, "utf8"));
@@ -189,6 +209,7 @@ function parseJobs(file) {
     .filter((j) => j && j.id)
     .map((j) => {
       const score = Number(j.matchScore);
+      const applicationFolder = clean(j.applicationFolder);
       return {
         external_id: String(j.id),
         company: clean(j.company),
@@ -205,7 +226,8 @@ function parseJobs(file) {
         date_applied: clean(j.dateApplied),
         next_action: clean(j.nextAction),
         notes: clean(j.notes),
-        application_folder: clean(j.applicationFolder),
+        application_folder: applicationFolder,
+        ...docFlags(dir, applicationFolder),
       };
     });
 }
@@ -385,7 +407,7 @@ async function main() {
   }
 
   const jobsSrc = findJobsJson(codeRoot);
-  const jobs = jobsSrc ? parseJobs(jobsSrc.file) : [];
+  const jobs = jobsSrc ? parseJobs(jobsSrc.file, jobsSrc.dir) : [];
   if (jobsSrc) {
     const byStatus = {};
     for (const j of jobs) byStatus[j.status] = (byStatus[j.status] || 0) + 1;
@@ -454,6 +476,7 @@ async function main() {
     jobAdded: 0,
     jobUpdated: 0,
     jobDeleted: 0,
+    jobWritebacks: 0,
     txAdded: 0,
     txUpdated: 0,
     txDeleted: 0,
@@ -566,13 +589,18 @@ async function main() {
     }
   }
 
-  // 4) Reconcile Job Hunter jobs (read-only mirror of jobs.json → jobs table).
+  // 4) Reconcile Job Hunter jobs (TWO-WAY sync, jobs.json ←→ jobs table).
+  //    Scouting fields always mirror disk→DB. Pipeline fields are board-co-owned:
+  //    a board_dirty row means the board edited the pipeline since the last sync, so
+  //    we push the board's values back into jobs.json (via tracker.py) and clear the
+  //    flag; otherwise disk wins and pipeline mirrors disk→DB as before.
   if (jobsSrc) {
     const jhProjectId = projectIdByPath.get(jobsSrc.dir) ?? null;
+    const trackerPy = join(jobsSrc.dir, "scripts", "tracker.py");
     const cols =
       "id,external_id,project_id,company,title,location,remote,source,url," +
       "match_score,why_it_fits,salary,status,date_found,date_applied," +
-      "next_action,notes,application_folder";
+      "next_action,notes,application_folder,has_resume,has_cover_letter,board_dirty";
     const { data: existingJobs, error: jErr } = await supa
       .from("jobs")
       .select(cols)
@@ -581,21 +609,70 @@ async function main() {
     const byExt = new Map(existingJobs.map((j) => [j.external_id, j]));
     const wantedExt = new Set(jobs.map((j) => j.external_id));
 
+    // Push the board's pipeline fields for one row back into jobs.json + tracker.xlsx.
+    // Only clears board_dirty on success, so a failure simply retries next sync.
+    const writeBackToDisk = (cur) => {
+      try {
+        execFileSync(
+          "python3",
+          [
+            trackerPy, "set-pipeline", cur.external_id,
+            "--status", cur.status ?? "New",
+            "--date-applied", cur.date_applied ?? "",
+            "--next-action", cur.next_action ?? "",
+            "--notes", cur.notes ?? "",
+          ],
+          { cwd: jobsSrc.dir, stdio: "pipe" },
+        );
+        return true;
+      } catch (err) {
+        console.warn(
+          `! write-back failed for ${cur.external_id} (left board_dirty for retry): ${err.message}`,
+        );
+        return false;
+      }
+    };
+
     for (const j of jobs) {
-      const row = { ...j, project_id: jhProjectId };
       const cur = byExt.get(j.external_id);
       if (!cur) {
+        // New job from disk — seed every field; board_dirty defaults false.
         const { error } = await supa
           .from("jobs")
-          .insert({ user_id: userId, ...row });
+          .insert({ user_id: userId, ...j, project_id: jhProjectId });
         if (error) throw error;
         stats.jobAdded++;
+        continue;
+      }
+
+      const scoutingChanged =
+        (cur.project_id ?? null) !== (jhProjectId ?? null) ||
+        SCOUTING_FIELDS.some((f) => (cur[f] ?? null) !== (j[f] ?? null));
+
+      if (cur.board_dirty) {
+        // Board owns the pipeline this round: update only scouting (never clobber the
+        // board's pipeline values), then push the board's pipeline back to jobs.json.
+        if (scoutingChanged) {
+          const scoutingRow = { project_id: jhProjectId };
+          for (const f of SCOUTING_FIELDS) scoutingRow[f] = j[f] ?? null;
+          const { error } = await supa.from("jobs").update(scoutingRow).eq("id", cur.id);
+          if (error) throw error;
+          stats.jobUpdated++;
+        }
+        if (writeBackToDisk(cur)) {
+          await supa.from("jobs").update({ board_dirty: false }).eq("id", cur.id);
+          stats.jobWritebacks++;
+        }
       } else {
-        const changed =
-          (cur.project_id ?? null) !== (jhProjectId ?? null) ||
-          JOB_FIELDS.some((f) => (cur[f] ?? null) !== (row[f] ?? null));
-        if (changed) {
-          const { error } = await supa.from("jobs").update(row).eq("id", cur.id);
+        // Disk owns the pipeline: mirror everything (scouting + pipeline) disk→DB.
+        const pipelineChanged = PIPELINE_FIELDS.some(
+          (f) => (cur[f] ?? null) !== (j[f] ?? null),
+        );
+        if (scoutingChanged || pipelineChanged) {
+          const { error } = await supa
+            .from("jobs")
+            .update({ ...j, project_id: jhProjectId })
+            .eq("id", cur.id);
           if (error) throw error;
           stats.jobUpdated++;
         }
@@ -713,7 +790,7 @@ async function main() {
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
       `  todos:    +${stats.todoAdded} added, ${stats.todoUpdated} updated, ${stats.todoDeleted} deleted\n` +
       (jobsSrc
-        ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted\n`
+        ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted, ${stats.jobWritebacks} written back\n`
         : "") +
       (instaSrc
         ? `  transcripts: +${stats.txAdded} added, ${stats.txUpdated} updated, ${stats.txDeleted} deleted\n`
