@@ -7,9 +7,9 @@ import {
   ExternalLink,
   FileText,
   GripVertical,
-  MoreHorizontal,
   SendHorizontal,
   Wand2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,14 +28,6 @@ import type { Job, JobStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -43,7 +35,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  JOB_STATUSES,
   PIPELINE_STATUSES,
   SCORE_TIER_CLASS,
   STATUS_BADGE_CLASS,
@@ -102,6 +93,23 @@ export function JobsBoard({ jobs: initialJobs }: { jobs: Job[] }) {
     });
   }
 
+  // "Remove from the New list" → mark Passed (terminal): drops off the active
+  // board into the collapsible Archived row, but stays in jobs.json for history.
+  function dismiss(job: Job) {
+    const prev = jobs;
+    setJobs((js) =>
+      js.map((j) => (j.id === job.id ? { ...j, status: "Passed" } : j)),
+    );
+    setJobStatus(job.id, "Passed").then((res) => {
+      if (res.error) {
+        setJobs(prev);
+        toast.error(res.error);
+      } else {
+        toast.success(`Removed ${job.external_id}`);
+      }
+    });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -124,6 +132,7 @@ export function JobsBoard({ jobs: initialJobs }: { jobs: Job[] }) {
             jobs={jobs.filter((j) => j.status === status).sort(sortByScoreDesc)}
             onMove={move}
             onApply={apply}
+            onDismiss={dismiss}
           />
         ))}
       </div>
@@ -147,6 +156,7 @@ export function JobsBoard({ jobs: initialJobs }: { jobs: Job[] }) {
                   .sort(sortByScoreDesc)}
                 onMove={move}
                 onApply={apply}
+                onDismiss={dismiss}
               />
             ))}
           </div>
@@ -161,11 +171,13 @@ function JobColumn({
   jobs,
   onMove,
   onApply,
+  onDismiss,
 }: {
   status: JobStatus;
   jobs: Job[];
   onMove: (id: string, status: JobStatus) => void;
   onApply: (job: Job) => void;
+  onDismiss: (job: Job) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
@@ -188,7 +200,13 @@ function JobColumn({
         )}
       >
         {jobs.map((job) => (
-          <JobCard key={job.id} job={job} onMove={onMove} onApply={onApply} />
+          <JobCard
+            key={job.id}
+            job={job}
+            onMove={onMove}
+            onApply={onApply}
+            onDismiss={onDismiss}
+          />
         ))}
         {jobs.length === 0 && (
           <div className="rounded-lg border border-dashed border-foreground/10 py-3 text-center text-xs text-muted-foreground">
@@ -204,10 +222,12 @@ function JobCard({
   job,
   onMove,
   onApply,
+  onDismiss,
 }: {
   job: Job;
   onMove: (id: string, status: JobStatus) => void;
   onApply: (job: Job) => void;
+  onDismiss: (job: Job) => void;
 }) {
   const tier = scoreTier(job.match_score);
   const meta = [job.location, job.remote].filter(Boolean).join(" · ");
@@ -287,55 +307,52 @@ function JobCard({
         </div>
       )}
 
-      <div className="mt-2 flex items-center gap-1">
-        <Button
-          size="sm"
-          className="h-7 flex-1 gap-1 px-2 text-xs"
-          onClick={() => setTailorOpen(true)}
-        >
-          <Wand2 className="size-3" />
-          {job.has_resume ? "Résumé ✓" : "Tailor résumé"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 gap-1 px-2 text-xs"
-          onClick={() => onApply(job)}
-        >
-          <SendHorizontal className="size-3" />
-          Apply
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                aria-label={`Move ${job.external_id}`}
-              />
-            }
+      {/* Actions are per-column: triage the New pile (accept / dismiss), then
+       * tailor + apply once a job is Interested. Later stages are drag-only. */}
+      {job.status === "New" && (
+        <div className="mt-2 flex items-center gap-1">
+          <Button
+            size="sm"
+            className="h-7 flex-1 gap-1 bg-emerald-600 px-2 text-xs text-white hover:bg-emerald-600/90"
+            onClick={() => onMove(job.id, "Interested")}
           >
-            <MoreHorizontal className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTailorOpen(true)}>
-              <Wand2 className="size-4" />
-              Tailor résumé &amp; cover letter…
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Move to</DropdownMenuLabel>
-            {JOB_STATUSES.filter((s) => s !== job.status).map((s) => (
-              <DropdownMenuItem key={s} onClick={() => onMove(job.id, s)}>
-                <span
-                  className={`mr-1 inline-block size-2 rounded-full ${STATUS_BADGE_CLASS[s]}`}
-                />
-                {s}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            <Check className="size-3.5" />
+            Interested
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 border-rose-500/40 px-2 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-400"
+            aria-label={`Remove ${job.external_id}`}
+            onClick={() => onDismiss(job)}
+          >
+            <X className="size-3.5" />
+            Remove
+          </Button>
+        </div>
+      )}
+
+      {job.status === "Interested" && (
+        <div className="mt-2 flex items-center gap-1">
+          <Button
+            size="sm"
+            className="h-7 flex-1 gap-1 px-2 text-xs"
+            onClick={() => setTailorOpen(true)}
+          >
+            <Wand2 className="size-3" />
+            {job.has_resume ? "Résumé ✓" : "Tailor résumé"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 flex-1 gap-1 px-2 text-xs"
+            onClick={() => onApply(job)}
+          >
+            <SendHorizontal className="size-3" />
+            Apply
+          </Button>
+        </div>
+      )}
 
       <TailorDialog job={job} open={tailorOpen} onOpenChange={setTailorOpen} />
     </div>
