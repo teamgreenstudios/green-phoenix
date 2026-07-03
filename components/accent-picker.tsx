@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -58,17 +59,19 @@ export function AccentPicker() {
         <Palette className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Accent color</DropdownMenuLabel>
-        {ACCENTS.map((a) => (
-          <DropdownMenuItem key={a.key} onClick={() => pick(a.key)}>
-            <span
-              className="size-3.5 rounded-full ring-1 ring-foreground/15"
-              style={{ backgroundColor: a.dot }}
-            />
-            {a.label}
-            {current === a.key && <Check className="ml-auto size-4" />}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Accent color</DropdownMenuLabel>
+          {ACCENTS.map((a) => (
+            <DropdownMenuItem key={a.key} onClick={() => pick(a.key)}>
+              <span
+                className="size-3.5 rounded-full ring-1 ring-foreground/15"
+                style={{ backgroundColor: a.dot }}
+              />
+              {a.label}
+              {current === a.key && <Check className="ml-auto size-4" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
