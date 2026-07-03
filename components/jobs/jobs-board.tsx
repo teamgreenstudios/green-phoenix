@@ -287,7 +287,15 @@ function JobCard({
         </div>
       )}
 
-      <div className="mt-2 flex items-center justify-between gap-1">
+      <div className="mt-2 flex items-center gap-1">
+        <Button
+          size="sm"
+          className="h-7 flex-1 gap-1 px-2 text-xs"
+          onClick={() => setTailorOpen(true)}
+        >
+          <Wand2 className="size-3" />
+          {job.has_resume ? "Résumé ✓" : "Tailor résumé"}
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -304,7 +312,7 @@ function JobCard({
                 variant="ghost"
                 size="icon"
                 className="size-7"
-                aria-label={`Actions for ${job.external_id}`}
+                aria-label={`Move ${job.external_id}`}
               />
             }
           >
@@ -313,11 +321,7 @@ function JobCard({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setTailorOpen(true)}>
               <Wand2 className="size-4" />
-              Tailor…
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApply(job)}>
-              <ExternalLink className="size-4" />
-              Apply &amp; open posting
+              Tailor résumé &amp; cover letter…
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Move to</DropdownMenuLabel>
@@ -365,12 +369,14 @@ function TailorDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Tailor {job.title ?? job.external_id}
+            Generate résumé &amp; cover letter — {job.title ?? job.external_id}
           </DialogTitle>
           <DialogDescription>
-            Tailoring runs locally in Job Hunter (it needs your master profile and
-            generates Word docs). Copy this command and run it in Claude Code, then{" "}
-            <code>npm run sync</code> to see the documents here.
+            This produces a tailored <strong>résumé.docx</strong> and{" "}
+            <strong>cover-letter.docx</strong> for this job. It runs locally in Job
+            Hunter (it needs your master profile and generates Word docs), so copy
+            this command, run it in Claude Code, then <code>npm run sync</code> to see
+            the documents show up here.
           </DialogDescription>
         </DialogHeader>
 
