@@ -45,7 +45,8 @@ export function ProjectFormDialog({ open, onOpenChange, mode, project }: Props) 
   const [liveUrl, setLiveUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Seed the form each time it opens.
+  // Seed the form each time it opens (intentional prop→state sync on open).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     setName(project?.name ?? "");
@@ -55,6 +56,7 @@ export function ProjectFormDialog({ open, onOpenChange, mode, project }: Props) 
     setRepoUrl(project?.repo_url ?? "");
     setLiveUrl(project?.live_url ?? "");
   }, [open, project]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

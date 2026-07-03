@@ -79,6 +79,7 @@ function WeatherRenderer({ config, refreshNonce }: TileRendererProps) {
 
   useEffect(() => {
     if (lat == null || lon == null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState({ loading: false });
       return;
     }

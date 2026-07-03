@@ -37,6 +37,8 @@ export function AccentPicker() {
 
   useEffect(() => {
     try {
+      // Client-only: read the stored accent after mount (avoids a hydration mismatch).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrent(localStorage.getItem("accent") || "green");
     } catch {
       // ignore

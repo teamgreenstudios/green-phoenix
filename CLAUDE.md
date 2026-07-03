@@ -104,12 +104,34 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   reconcile by `external_id`). Surfaced **read-only** at **`/jobs`** (KPI cards + status pipeline;
   `app/(app)/jobs/page.tsx` + `components/jobs/*`) and a compact **`job_hunter` tile**
   (`components/tiles/defs/job-hunter.tsx`). Jobs load via `loadDashboard` into `TileData.jobs`;
-  KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`). No editing/write-back
-  (local-only, deferred). Status `Expired` (Job Hunter archives dead postings there) is a
+  KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`). Originally read-only;
+  now **two-way** (see next bullet). Status `Expired` (Job Hunter archives dead postings there) is a
   **terminal** status — migration `0011` adds it to the `jobs_status_check`; `JobStatus`,
   `JOB_STATUSES`/`TERMINAL`, and the badge map in `lib/jobs.ts` include it; the board renders
   `PIPELINE_STATUSES` (active only), so terminal statuses aren't columns. Keep these in lockstep
-  with Job Hunter's status list.
+  with Job Hunter's status list **and** the sync's local `JOB_STATUSES` array in
+  `scripts/sync-from-disk.mjs` (which previously omitted `Expired`).
+- **Jobs two-way sync + interactive board (migration `0018`):** the `/jobs` board is now
+  drag-and-drop (`components/jobs/jobs-board.tsx` is a `"use client"` dnd-kit kanban: drag a card
+  between columns, a per-card ⋯ menu, an **Apply** button = open posting + mark Applied, a
+  **Tailor…** dialog with a copyable `/tailor-application <JH-id>` command, **Resume/Cover letter**
+  badges, and a collapsible Archived row). Edits go through Server Actions in
+  `app/(app)/jobs/actions.ts` (`setJobStatus`/`markApplied`/`setNextAction`/`addNote`), each
+  setting **`board_dirty = true`**. The sync (`scripts/sync-from-disk.mjs`) splits jobs columns
+  into `SCOUTING_FIELDS` (always disk→DB) and `PIPELINE_FIELDS` (`status`/`date_applied`/
+  `next_action`/`notes`, board-co-owned): a `board_dirty` row is **written back** into Job Hunter's
+  `jobs.json` via `python3 <JobHunter>/scripts/tracker.py set-pipeline …` (then the flag clears);
+  otherwise disk wins. Conflict rule = **board-wins** on the same row between two syncs. New
+  scouting cols `has_resume`/`has_cover_letter` are derived by statting
+  `applications/<application_folder>/{resume,cover-letter}.docx`. Apply `0018` before deploying.
+  Note: the sync now **writes** a sibling repo (needs `python3` + `openpyxl` locally), and the
+  board's edits are only visible to Job Hunter / the 4317 dashboard / `tracker.xlsx` after a sync.
+- **Lint hygiene (react-hooks v6 / compiler rules):** the mount-guard idiom
+  (`useState(false)` + `useEffect(() => setMounted(true))`) is replaced by
+  `lib/hooks/use-mounted.ts` (`useSyncExternalStore`, no state-in-effect). Intentional
+  timer/fetch/dialog-seed effects carry a targeted
+  `// eslint-disable-next-line react-hooks/set-state-in-effect` (house style, same as the
+  existing `exhaustive-deps` disables). `npm run lint` is green.
 - **instascrape transcripts (read-only mirror):** the local instascrape app's
   `data/assets/research/<shortcode>/transcript.txt` files are mirrored into a `transcripts` table
   (migration `0012`) by the same `npm run sync` (reads `<SYNC_INSTASCRAPE_DIR or

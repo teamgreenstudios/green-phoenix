@@ -2,11 +2,7 @@
 
 import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type {
-  TileConfigFormProps,
-  TileDefinition,
-  TileRendererProps,
-} from "../types";
+import type { TileDefinition, TileRendererProps } from "../types";
 
 const WEEKS = 13;
 const iso = (d: Date) =>
@@ -77,7 +73,7 @@ function HeatmapRenderer({ data }: TileRendererProps) {
   );
 }
 
-function HeatmapConfigForm(_props: TileConfigFormProps) {
+function HeatmapConfigForm() {
   return (
     <p className="text-xs text-muted-foreground">
       Shows todos you&apos;ve completed per day — nothing to configure.

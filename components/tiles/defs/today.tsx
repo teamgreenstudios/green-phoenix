@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { AlarmClock, CalendarClock, Target } from "lucide-react";
 import type { Project, Todo } from "@/lib/types";
-import type {
-  TileConfigFormProps,
-  TileDefinition,
-  TileRendererProps,
-} from "../types";
+import type { TileDefinition, TileRendererProps } from "../types";
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -121,7 +117,7 @@ function Section({
   );
 }
 
-function TodayConfigForm(_props: TileConfigFormProps) {
+function TodayConfigForm() {
   return (
     <p className="text-xs text-muted-foreground">
       This tile fills itself from your todos and projects — nothing to configure.

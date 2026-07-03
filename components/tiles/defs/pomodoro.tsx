@@ -34,8 +34,9 @@ function PomodoroRenderer({ config }: TileRendererProps) {
   const [running, setRunning] = useState(false);
   const [sessions, setSessions] = useState(0);
 
-  // Keep the displayed time in sync with config changes while paused.
+  // Keep the displayed time in sync with config changes while paused (deliberate).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!running) setSecondsLeft(mode === "work" ? workSec : breakSec);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workSec, breakSec]);
@@ -50,7 +51,8 @@ function PomodoroRenderer({ config }: TileRendererProps) {
     return () => clearInterval(id);
   }, [running]);
 
-  // Auto-advance work ⇄ break when an interval ends.
+  // Auto-advance work ⇄ break when an interval ends — an intentional timer state machine.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (secondsLeft !== 0) return;
     if (mode === "work") {
@@ -62,6 +64,7 @@ function PomodoroRenderer({ config }: TileRendererProps) {
       setSecondsLeft(workSec);
     }
   }, [secondsLeft, mode, workSec, breakSec]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function reset() {
     setRunning(false);

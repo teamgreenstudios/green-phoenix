@@ -36,6 +36,8 @@ function DataSourceRenderer({
 
   useEffect(() => {
     let cancelled = false;
+    // Intentional: show the spinner while (re)fetching on mount / refreshNonce change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     refreshDataSource(type, config).then((r) => {
       if (!cancelled) {

@@ -36,6 +36,19 @@ function parts(ms: number) {
   };
 }
 
+// Hoisted to module scope (it closes over nothing) so it isn't re-created each render —
+// satisfies react-hooks/static-components.
+function Unit({ value, unit }: { value: number; unit: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-2xl font-semibold tabular-nums">{value}</span>
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {unit}
+      </span>
+    </div>
+  );
+}
+
 function CountdownRenderer({ config }: TileRendererProps) {
   const { label, targetDate } = asConfig(config);
   const [now, setNow] = useState(() => Date.now());
@@ -61,15 +74,6 @@ function CountdownRenderer({ config }: TileRendererProps) {
   const diff = target - now;
   const reached = diff <= 0;
   const { days, hours, minutes, seconds } = parts(Math.abs(diff));
-
-  const Unit = ({ value, unit }: { value: number; unit: string }) => (
-    <div className="flex flex-col items-center">
-      <span className="text-2xl font-semibold tabular-nums">{value}</span>
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-        {unit}
-      </span>
-    </div>
-  );
 
   return (
     <div className="flex flex-col items-center gap-2 py-1 text-center">

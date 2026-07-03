@@ -43,6 +43,8 @@ export function TodoEditDialog({
   const [tags, setTags] = useState((todo.tags ?? []).join(", "));
   const [saving, setSaving] = useState(false);
 
+  // Seed the form each time it opens (intentional prop→state sync on open).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     setTitle(todo.title);
@@ -51,6 +53,7 @@ export function TodoEditDialog({
     setPriority(todo.priority);
     setTags((todo.tags ?? []).join(", "));
   }, [open, todo]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

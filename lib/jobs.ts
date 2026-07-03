@@ -18,9 +18,9 @@ export const JOB_STATUSES: JobStatus[] = [
   "Expired",
 ];
 
-/** Terminal statuses — excluded from the "active" count and the pipeline board.
+/** Terminal statuses — excluded from the "active" count and the active pipeline columns.
  * "Expired" = the posting is no longer live (archived by Job Hunter's /prune-jobs). */
-const TERMINAL: JobStatus[] = ["Rejected", "Passed", "Expired"];
+export const TERMINAL: JobStatus[] = ["Rejected", "Passed", "Expired"];
 
 /** Columns shown on the read-only pipeline board (active statuses only). */
 export const PIPELINE_STATUSES: JobStatus[] = JOB_STATUSES.filter(

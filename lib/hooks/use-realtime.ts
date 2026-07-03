@@ -19,9 +19,13 @@ export function useRealtimeTable(
   onChange: (payload: ChangePayload) => void,
   enabled = true,
 ) {
-  // Keep the latest callback without forcing a re-subscribe each render.
+  // Keep the latest callback without forcing a re-subscribe each render. Updated in an
+  // effect (not during render) so it doesn't violate react-hooks/refs; the subscription
+  // reads cb.current only at event time, well after commit.
   const cb = useRef(onChange);
-  cb.current = onChange;
+  useEffect(() => {
+    cb.current = onChange;
+  });
   const channelId = useId();
 
   useEffect(() => {
