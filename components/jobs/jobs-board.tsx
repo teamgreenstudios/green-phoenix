@@ -308,7 +308,7 @@ function JobCard({
       )}
 
       {/* Actions are per-column: triage the New pile (accept / dismiss), then
-       * tailor + apply once a job is Interested. Later stages are drag-only. */}
+       * tailor + apply while a job is Interested or Tailored. Applied+ is drag-only. */}
       {job.status === "New" && (
         <div className="mt-2 flex items-center gap-1">
           <Button
@@ -332,7 +332,7 @@ function JobCard({
         </div>
       )}
 
-      {job.status === "Interested" && (
+      {(job.status === "Interested" || job.status === "Tailored") && (
         <div className="mt-2 flex items-center gap-1">
           <Button
             size="sm"
