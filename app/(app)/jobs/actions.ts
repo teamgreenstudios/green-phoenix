@@ -63,6 +63,37 @@ export async function setNextAction(
   return patchJob(id, { next_action: v.length ? v : null });
 }
 
+// Tailored docs live in the private `job-docs` bucket (migration 0019), uploaded by the
+// local `npm run sync` as job-docs/<external_id>/<file>. Reads are RLS-gated to allowlisted
+// users, so a short-lived signed URL from the user's own session is the whole download story.
+const JOB_DOC_FILES = {
+  resume: "resume.docx",
+  cover: "cover-letter.docx",
+} as const;
+export type JobDocKind = keyof typeof JOB_DOC_FILES;
+
+/** Signed download URL (60s) for a tailored job's resume/cover letter. */
+export async function getJobDocUrl(
+  externalId: string,
+  kind: JobDocKind,
+): Promise<{ url?: string; error?: string }> {
+  const file = JOB_DOC_FILES[kind];
+  if (!file) return { error: "Unknown document type." };
+  if (!/^[A-Za-z0-9_-]+$/.test(externalId)) return { error: "Invalid job id." };
+  try {
+    const { supabase } = await requireUser();
+    const { data, error } = await supabase.storage
+      .from("job-docs")
+      .createSignedUrl(`${externalId}/${file}`, 60, {
+        download: `${externalId}-${file}`,
+      });
+    if (error) return { error: error.message };
+    return { url: data.signedUrl };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to create link." };
+  }
+}
+
 /** Append a dated note. Reads-then-writes so existing history is preserved. */
 export async function addNote(id: string, text: string): Promise<JobActionResult> {
   const note = text.trim();

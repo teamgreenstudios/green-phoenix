@@ -126,6 +126,16 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   `applications/<application_folder>/{resume,cover-letter}.docx`. Apply `0018` before deploying.
   Note: the sync now **writes** a sibling repo (needs `python3` + `openpyxl` locally), and the
   board's edits are only visible to Job Hunter / the 4317 dashboard / `tracker.xlsx` after a sync.
+- **Jobs doc downloads (migration `0019`):** the board's Resume/Cover-letter badges are now
+  **download buttons**. `npm run sync` uploads each tailored job's
+  `applications/<folder>/{resume,cover-letter}.{docx,pdf}` into the **private `job-docs`
+  storage bucket** (`job-docs/<external_id>/<file>`, service-role upload; skips files whose
+  remote `updated_at` ≥ local mtime; "N docs uploaded" in the summary). Reads are RLS-gated on
+  `storage.objects` via `public.is_allowed_user()` — deliberate, because the **guest job board
+  shares this Supabase project** and must not see Rob's docs. `getJobDocUrl` in
+  `app/(app)/jobs/actions.ts` mints a 60s signed URL (`download:` sets content-disposition);
+  the client clicks a transient `<a>`. Docs appear on the deployed board only after a local
+  sync has uploaded them.
 - **Lint hygiene (react-hooks v6 / compiler rules):** the mount-guard idiom
   (`useState(false)` + `useEffect(() => setMounted(true))`) is replaced by
   `lib/hooks/use-mounted.ts` (`useSyncExternalStore`, no state-in-effect). Intentional

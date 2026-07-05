@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Check,
   Copy,
+  Download,
   ExternalLink,
   FileText,
   GripVertical,
@@ -42,7 +43,28 @@ import {
   scoreTier,
   sortByScoreDesc,
 } from "@/lib/jobs";
-import { markApplied, setJobStatus } from "@/app/(app)/jobs/actions";
+import {
+  getJobDocUrl,
+  markApplied,
+  setJobStatus,
+  type JobDocKind,
+} from "@/app/(app)/jobs/actions";
+
+// Fetch a short-lived signed URL for a tailored doc (private job-docs bucket) and trigger
+// the download via a transient <a> — content-disposition comes from the signed URL itself.
+async function downloadJobDoc(job: Job, kind: JobDocKind) {
+  const res = await getJobDocUrl(job.external_id, kind);
+  if (!res.url) {
+    toast.error(res.error ?? "Document not available — run `npm run sync` locally first.");
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = res.url;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 /** Interactive Kanban pipeline: drag a card between columns (or use the ⋯ menu) to change its
  * status; the change persists via a Server Action and is written back to Job Hunter's jobs.json
@@ -290,19 +312,35 @@ function JobCard({
         <div className="mt-0.5 text-[11px] text-muted-foreground">{meta}</div>
       )}
 
+      {/* Doc badges double as downloads: the sync uploads the generated .docx files to the
+       * private job-docs bucket, and clicking fetches a signed URL. */}
       {(job.has_resume || job.has_cover_letter) && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {job.has_resume && (
-            <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+            <button
+              type="button"
+              title="Download resume.docx"
+              aria-label={`Download resume for ${job.external_id}`}
+              className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
+              onClick={() => downloadJobDoc(job, "resume")}
+            >
               <FileText className="size-2.5" />
               Resume
-            </span>
+              <Download className="size-2.5 opacity-70" />
+            </button>
           )}
           {job.has_cover_letter && (
-            <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+            <button
+              type="button"
+              title="Download cover-letter.docx"
+              aria-label={`Download cover letter for ${job.external_id}`}
+              className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
+              onClick={() => downloadJobDoc(job, "cover")}
+            >
               <FileText className="size-2.5" />
               Cover letter
-            </span>
+              <Download className="size-2.5 opacity-70" />
+            </button>
           )}
         </div>
       )}

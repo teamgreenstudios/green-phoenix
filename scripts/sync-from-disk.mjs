@@ -188,6 +188,48 @@ function docFlags(dir, applicationFolder) {
   };
 }
 
+// Upload each tailored job's generated docs into the private `job-docs` storage bucket
+// (migration 0019) as job-docs/<external_id>/<file>, so the deployed /jobs board can offer
+// real downloads via signed URLs. Service-role upload (bypasses RLS); reads are gated by the
+// allowlist policy. Skips files whose remote copy is newer than the local mtime, so repeat
+// syncs are cheap. PDFs ride along when /tailor-application produced them.
+const JOB_DOC_FILES = ["resume.docx", "cover-letter.docx", "resume.pdf", "cover-letter.pdf"];
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+async function syncJobDocs(supa, dir, jobs, stats) {
+  for (const j of jobs) {
+    if (!j.application_folder || !(j.has_resume || j.has_cover_letter)) continue;
+    const base = join(dir, "applications", j.application_folder);
+    const remote = new Map();
+    const { data: listed, error: listErr } = await supa.storage
+      .from("job-docs")
+      .list(j.external_id);
+    if (listErr) {
+      console.warn(`! job-docs list failed for ${j.external_id}: ${listErr.message}`);
+      continue;
+    }
+    for (const o of listed ?? []) remote.set(o.name, o);
+    for (const name of JOB_DOC_FILES) {
+      const file = join(base, name);
+      if (!existsSync(file)) continue;
+      const remoteUpdated = remote.get(name)?.updated_at;
+      if (remoteUpdated && new Date(remoteUpdated).getTime() >= statSync(file).mtimeMs)
+        continue; // remote copy is current
+      const { error } = await supa.storage
+        .from("job-docs")
+        .upload(`${j.external_id}/${name}`, readFileSync(file), {
+          contentType: name.endsWith(".pdf") ? "application/pdf" : DOCX_MIME,
+          upsert: true,
+        });
+      if (error) {
+        console.warn(`! job-docs upload failed for ${j.external_id}/${name}: ${error.message}`);
+      } else {
+        stats.jobDocsUploaded++;
+      }
+    }
+  }
+}
+
 function findJobsJson(codeRoot) {
   const dir = process.env.SYNC_JOBHUNTER_DIR
     ? resolve(process.env.SYNC_JOBHUNTER_DIR)
@@ -477,6 +519,7 @@ async function main() {
     jobUpdated: 0,
     jobDeleted: 0,
     jobWritebacks: 0,
+    jobDocsUploaded: 0,
     txAdded: 0,
     txUpdated: 0,
     txDeleted: 0,
@@ -684,6 +727,9 @@ async function main() {
         stats.jobDeleted++;
       }
     }
+
+    // Upload tailored docs to the job-docs bucket (0019) for board downloads.
+    await syncJobDocs(supa, jobsSrc.dir, jobs, stats);
   }
 
   // 5) Reconcile instascrape transcripts (read-only mirror → transcripts table).
@@ -790,7 +836,7 @@ async function main() {
       `  projects: +${stats.projCreated} created, ${stats.projArchived} archived\n` +
       `  todos:    +${stats.todoAdded} added, ${stats.todoUpdated} updated, ${stats.todoDeleted} deleted\n` +
       (jobsSrc
-        ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted, ${stats.jobWritebacks} written back\n`
+        ? `  jobs:     +${stats.jobAdded} added, ${stats.jobUpdated} updated, ${stats.jobDeleted} deleted, ${stats.jobWritebacks} written back, ${stats.jobDocsUploaded} docs uploaded\n`
         : "") +
       (instaSrc
         ? `  transcripts: +${stats.txAdded} added, ${stats.txUpdated} updated, ${stats.txDeleted} deleted\n`
