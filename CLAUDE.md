@@ -46,124 +46,149 @@ with an extensible tile system. Scoped one **Phase** at a time (see spec §10); 
   + Vercel env). Current allowlist: `robgreen31@gmail.com`, `robgreen31+dash@gmail.com`,
   `teamgreenstudios@gmail.com`.
 
-## Milestone status
-- **M0 (done):** scaffold, `supabase/migrations/0001_init.sql`, Supabase clients, Google +
-  magic-link auth, `/auth/callback`, proxy allowlist guard, `/not-authorized`, dark theme.
-- **M1 (done):** shared authenticated `app/(app)/layout.tsx` (auth guard + header w/ `MainNav`);
-  Projects CRUD at `/projects` — list/create/edit/delete/reorder/status/current_focus via
-  Server Actions in `app/(app)/projects/actions.ts` (RLS-scoped). Dashboard moved to `app/(app)/page.tsx`.
-- **M2 (done):** Todos — reusable client `components/todos/TodoList` (add/toggle/edit/delete/reorder,
-  due date, priority) over Server Actions in `app/(app)/todos/actions.ts`. Surfaces: global `/todos`
-  and per-project `/projects/[id]` detail page. Project card titles link to the detail page.
-- **M3 (done):** Tile system — registry (`components/tiles/registry.ts`) + per-type defs in
-  `components/tiles/defs/{launcher,todos,project-status}.tsx` (renderer + config form + meta);
-  `TileBoard` (client edit-mode: add/reorder/resize S-M-L/hide/edit/delete) + `TileCard`; tile
-  Server Actions in `app/(app)/tiles/actions.ts`. Dashboard `/` is the responsive tile grid.
-  Edit-mode toggle lives on the dashboard (not the global header) since it's dashboard-specific.
-- **Phase 2 (done):** two more renderers — `bookmarks` and `notes` (markdown via `react-markdown` +
-  `rehype-sanitize` + `remark-gfm`, **inline-editable on the tile**) — plus placeholder data-source
-  tiles `steam`/`media` (shared scaffold `components/tiles/defs/data-source-tile.tsx` + stub action
-  `app/(app)/tiles/data-sources.ts`; **stubs only**, no live integration). Generic **per-tile refresh**
-  (`refreshable` + `refreshNonce` on the tile contract; refresh button in `TileCard`). Shared
-  config-form helpers `components/tiles/config-fields.tsx` (`Field`, `LinkItemsEditor`; launcher
-  rewired to it). Renderer contract gained `id` + `onConfigSaved` (inline save). Light-mode pass:
-  light `--primary`/`--ring` darkened to `oklch(0.52 0.13 159)` for WCAG AA. New deps:
-  react-markdown, rehype-sanitize, remark-gfm.
-- **Phase 3 (done, except SSO):** drag-and-drop tile reorder via **dnd-kit** (grip handle in edit
-  mode; `reorderTiles` action writes `sort_order`; resize stays on the S/M/L buttons). **Supabase
-  realtime** wiring — reusable `lib/hooks/use-realtime.ts`; `TodoList` merges live todo changes by
-  id; `components/projects/realtime-projects.tsx` does `router.refresh()` on `/projects` +
-  `/projects/[id]`. Replication is **enabled** on `todos`/`projects` and realtime is **verified
-  end-to-end** (the hook calls `supabase.realtime.setAuth` so RLS `postgres_changes` include row
-  data — fix `564c008`). Cross-app **SSO intentionally skipped** (spec §11, out of scope). New deps:
-  `@dnd-kit/{core,sortable,utilities}`.
-- **Phase 4 (done):** glanceable tiles (`weather` via Open-Meteo, `pomodoro`, `countdown`); ⌘K
-  **command palette + search** (`cmdk`; `components/command-palette.tsx`); **accent picker**
-  (`data-accent` overrides in `globals.css` + a no-flash inline script in the root layout);
-  **export/import** tiles (account menu); **todo tags** + filter + `completed_at`; **Today** +
-  **activity heatmap** tiles; **habit tracker** (`app/(app)/habits/`, `defs/habits.tsx`); **multiple
-  dashboards** (`boards` + `tiles.board_id`; `lib/load-dashboard.ts`, route `/b/[boardId]`,
-  `components/{board-tabs,dashboard-view}.tsx`; tiles are board-scoped, projects/todos global);
-  **GitHub/Steam** data tiles (`defs/github.tsx` + live fetches in `tiles/data-sources.ts`, graceful
-  without tokens); **PWA** (`app/manifest.ts`, `public/{icon.svg,sw.js}`, viewport themeColor) +
-  mobile-overflow polish. Migration `0004_phase4.sql` is applied. New dep: `cmdk`. Optional owner
-  env: `GITHUB_TOKEN`, `STEAM_API_KEY` (see `BACKLOG.md`).
-- **Post-Phase-4 hardening:** DB-level email allowlist AND-ed into all RLS (`0005`); FK covering
-  indexes (`0006`); RLS initplan `(select …)` wrapping (`0007`). The `public` schema is clear of
-  WARN-level Supabase advisors. Allowlist is **hardcoded in `is_allowed_user()`** (not a GUC). See `BACKLOG.md`.
-- **Disk sync (local CLI):** `scripts/sync-from-disk.mjs` (`npm run sync`; `-- --dry-run` to preview)
-  mirrors the folders under `SYNC_CODE_ROOT` (default `/home/robgreen/projects`) into
-  `projects` (one per folder, keyed by `projects.external_path`, migration `0008`) and each folder's
-  `BACKLOG.md` **GFM checkboxes** into that project's `todos` (tagged `disk-sync`). MIRROR mode:
-  vanished folders → project archived, removed checkboxes → todo deleted; manual rows untouched.
-  Runs **locally only** (a Vercel server can't read your disk) and writes via the **service-role key**
+## Status
+
+All planned build phases are **complete** (scaffold → tiles → glanceables → jobs/transcripts/
+prompts mirrors → hardening). What remains is **owner infra only**: optional `GITHUB_TOKEN` /
+`STEAM_API_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` locally to run the disk sync (see `BACKLOG.md`).
+No further code phases planned; do **not** start the SSO exploration (spec §11, intentionally
+skipped) without the user's go-ahead. The user provisions Supabase, Google OAuth, env vars, and
+applies migrations (spec §9). `npm run build` and the preview MCP both pass against current code.
+
+**Apply new migrations before deploying** — a page that selects a brand-new column renders an
+empty list (no error) when the column is absent; this bit deploys repeatedly (the `0015`–`0019`
+episodes).
+
+## App shell, auth & access
+
+- Scaffold + base schema in `supabase/migrations/0001_init.sql`; shared authenticated
+  `app/(app)/layout.tsx` (auth guard + header w/ `MainNav`); Google + magic-link auth,
+  `/auth/callback`, `/not-authorized`; dark theme default.
+- **The access lock is the email allowlist, enforced twice**: in `proxy.ts`
+  (`lib/auth.ts#isAllowedEmail`, env `ALLOWED_EMAILS`) **and** in the DB —
+  `public.is_allowed_user()` is AND-ed into every RLS policy on all six user-data tables
+  (`projects`/`todos`/`tiles`/`boards`/`habits`/`habit_entries`, migration `0005`). The DB list
+  is **hardcoded in the function** (deviation from spec §5: the MCP/pooler role lacks
+  `ALTER DATABASE` for a GUC) — keep it in sync with `ALLOWED_EMAILS` (proxy.ts + Vercel env).
+  Current allowlist: `robgreen31@gmail.com`, `robgreen31+dash@gmail.com`,
+  `teamgreenstudios@gmail.com`.
+- Hardening applied: FK covering indexes (`0006`), RLS initplan `(select …)` wrapping (`0007`).
+  The `public` schema is clear of WARN-level Supabase advisors.
+
+## Projects & todos
+
+- Projects CRUD at `/projects` (list/create/edit/delete/reorder/status/current_focus) via
+  Server Actions in `app/(app)/projects/actions.ts` (RLS-scoped); per-project detail at
+  `/projects/[id]` (card titles link to it).
+- Reusable client `components/todos/TodoList` (add/toggle/edit/delete/reorder, due date,
+  priority, **tags** + filter, `completed_at`) over `app/(app)/todos/actions.ts`. Surfaces:
+  global `/todos` + the project detail page.
+- **Supabase realtime**: reusable `lib/hooks/use-realtime.ts`; `TodoList` merges live todo
+  changes by id; `components/projects/realtime-projects.tsx` does `router.refresh()` on
+  `/projects` + `/projects/[id]`. Replication is enabled on `todos`/`projects` and verified
+  end-to-end — the hook calls `supabase.realtime.setAuth` so RLS `postgres_changes` include
+  row data (fix `564c008`).
+
+## Tile system & dashboards
+
+- Registry (`components/tiles/registry.ts`) + per-type defs in `components/tiles/defs/*`
+  (renderer + config form + meta). Renderer contract includes `id` + `onConfigSaved` (inline
+  save) and `refreshable` + `refreshNonce` (generic per-tile refresh; button in `TileCard`).
+- `TileBoard` (client edit mode: add/resize S-M-L/hide/edit/delete; edit toggle lives on the
+  dashboard, not the global header) + `TileCard`; tile Server Actions in
+  `app/(app)/tiles/actions.ts`. Drag-and-drop reorder via **dnd-kit** (grip handle in edit
+  mode; `reorderTiles` writes `sort_order`; resize stays on the S/M/L buttons).
+- Tile types: `launcher`, `todos`, `project-status`, `bookmarks`, `notes` (markdown via
+  `react-markdown` + `rehype-sanitize` + `remark-gfm`, **inline-editable on the tile**),
+  `weather` (Open-Meteo), `pomodoro`, `countdown`, **Today**, **activity heatmap**, `habits`,
+  `job_hunter`, and **GitHub/Steam** data tiles (`defs/github.tsx` + live fetches in
+  `tiles/data-sources.ts`, graceful without tokens). `media` remains a **stub** on the shared
+  `defs/data-source-tile.tsx` scaffold (no live integration). Shared config-form helpers in
+  `components/tiles/config-fields.tsx` (`Field`, `LinkItemsEditor`).
+- **Multiple dashboards**: `boards` + `tiles.board_id` (`lib/load-dashboard.ts`, route
+  `/b/[boardId]`, `components/{board-tabs,dashboard-view}.tsx`); tiles are board-scoped,
+  projects/todos global. Migration `0004_phase4.sql`.
+- App-wide extras: ⌘K **command palette + search** (`cmdk`; `components/command-palette.tsx`);
+  **accent picker** (`data-accent` overrides in `globals.css` + a no-flash inline script in the
+  root layout; light `--primary`/`--ring` darkened to `oklch(0.52 0.13 159)` for WCAG AA);
+  tile **export/import** (account menu); **habit tracker** (`app/(app)/habits/`,
+  `defs/habits.tsx`); **PWA** (`app/manifest.ts`, `public/{icon.svg,sw.js}`, viewport
+  themeColor) + mobile-overflow polish.
+
+## Disk sync (`npm run sync` — the workspace hub)
+
+- `scripts/sync-from-disk.mjs` (`-- --dry-run` to preview) mirrors the folders under
+  `SYNC_CODE_ROOT` (default `/home/robgreen/projects`) into `projects` (one per folder, keyed
+  by `projects.external_path`, migration `0008`) and each folder's `BACKLOG.md` **GFM
+  checkboxes** into that project's `todos` (tagged `disk-sync`). MIRROR mode: vanished folders
+  → project archived, removed checkboxes → todo deleted; manual rows untouched. Runs **locally
+  only** (a Vercel server can't read your disk) and writes via the **service-role key**
   (`SUPABASE_SERVICE_ROLE_KEY` in `.env.local`) for `SYNC_USER_EMAIL`. No new npm deps.
-- **Job Hunter (Phase 5 — read-only mirror):** the separate local Job Hunter app's
-  `jobs/jobs.json` is mirrored into a new `jobs` table (migration `0010`) by the same
-  `npm run sync` (reads `<SYNC_JOBHUNTER_DIR or CODE_ROOT/Job Hunter>/jobs/jobs.json`; mirror
-  reconcile by `external_id`). Surfaced **read-only** at **`/jobs`** (KPI cards + status pipeline;
-  `app/(app)/jobs/page.tsx` + `components/jobs/*`) and a compact **`job_hunter` tile**
-  (`components/tiles/defs/job-hunter.tsx`). Jobs load via `loadDashboard` into `TileData.jobs`;
-  KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`). Originally read-only;
-  now **two-way** (see next bullet). Status `Expired` (Job Hunter archives dead postings there) is a
-  **terminal** status — migration `0011` adds it to the `jobs_status_check`; `JobStatus`,
-  `JOB_STATUSES`/`TERMINAL`, and the badge map in `lib/jobs.ts` include it; the board renders
-  `PIPELINE_STATUSES` (active only), so terminal statuses aren't columns. Keep these in lockstep
-  with Job Hunter's status list **and** the sync's local `JOB_STATUSES` array in
-  `scripts/sync-from-disk.mjs` (which previously omitted `Expired`).
-- **Jobs two-way sync + interactive board (migration `0018`):** the `/jobs` board is now
-  drag-and-drop (`components/jobs/jobs-board.tsx` is a `"use client"` dnd-kit kanban: drag a card
-  between columns, a per-card ⋯ menu, an **Apply** button = open posting + mark Applied, a
-  **Tailor…** dialog with a copyable `/tailor-application <JH-id>` command, **Resume/Cover letter**
-  badges, and a collapsible Archived row). Edits go through Server Actions in
-  `app/(app)/jobs/actions.ts` (`setJobStatus`/`markApplied`/`setNextAction`/`addNote`), each
-  setting **`board_dirty = true`**. The sync (`scripts/sync-from-disk.mjs`) splits jobs columns
-  into `SCOUTING_FIELDS` (always disk→DB) and `PIPELINE_FIELDS` (`status`/`date_applied`/
-  `next_action`/`notes`, board-co-owned): a `board_dirty` row is **written back** into Job Hunter's
-  `jobs.json` via `python3 <JobHunter>/scripts/tracker.py set-pipeline …` (then the flag clears);
-  otherwise disk wins. Conflict rule = **board-wins** on the same row between two syncs. New
-  scouting cols `has_resume`/`has_cover_letter` are derived by statting
-  `applications/<application_folder>/{resume,cover-letter}.docx`. Apply `0018` before deploying.
-  Note: the sync now **writes** a sibling repo (needs `python3` + `openpyxl` locally), and the
-  board's edits are only visible to Job Hunter / the 4317 dashboard / `tracker.xlsx` after a sync.
-- **Jobs doc downloads (migration `0019`):** the board's Resume/Cover-letter badges are now
-  **download buttons**. `npm run sync` uploads each tailored job's
+- The same run also mirrors **Job Hunter jobs** (two-way — see Jobs below), **instascrape
+  transcripts + prompts** (see below), and uploads **job docs** to Storage.
+
+## Jobs (`/jobs` board + two-way Job Hunter sync)
+
+- **Mirror**: Job Hunter's `jobs/jobs.json` → `jobs` table (migration `0010`; reads
+  `<SYNC_JOBHUNTER_DIR or CODE_ROOT/Job Hunter>/jobs/jobs.json`; mirror reconcile by
+  `external_id`). Surfaced at **`/jobs`** (KPI cards + pipeline; `app/(app)/jobs/page.tsx` +
+  `components/jobs/*`) and the compact `job_hunter` tile. Jobs load via `loadDashboard` into
+  `TileData.jobs`; KPI/pipeline/score logic mirrors the Job Hunter app (`lib/jobs.ts`).
+- **Statuses**: `Expired` (Job Hunter archives dead postings there) is **terminal** — migration
+  `0011` adds it to `jobs_status_check`; `JobStatus`, `JOB_STATUSES`/`TERMINAL`, and the badge
+  map in `lib/jobs.ts` include it; the board renders `PIPELINE_STATUSES` (active only), so
+  terminal statuses aren't columns. Keep these in lockstep with Job Hunter's status list
+  **and** the sync's local `JOB_STATUSES` array in `scripts/sync-from-disk.mjs` (which once
+  omitted `Expired`).
+- **Interactive board (migration `0018`)**: `components/jobs/jobs-board.tsx` is a
+  `"use client"` dnd-kit kanban — drag a card between columns, per-card ⋯ menu, an **Apply**
+  button (open posting + mark Applied), a **Tailor…** dialog with a copyable
+  `/tailor-application <JH-id>` command, Resume/Cover-letter badges, and a collapsible
+  Archived row. Edits go through Server Actions in `app/(app)/jobs/actions.ts`
+  (`setJobStatus`/`markApplied`/`setNextAction`/`addNote`), each setting `board_dirty = true`.
+- **Two-way rule**: the sync splits jobs columns into `SCOUTING_FIELDS` (always disk→DB) and
+  `PIPELINE_FIELDS` (`status`/`date_applied`/`next_action`/`notes`, board-co-owned). A
+  `board_dirty` row is **written back** into Job Hunter's `jobs.json` via
+  `python3 <JobHunter>/scripts/tracker.py set-pipeline …` (then the flag clears); otherwise
+  disk wins. Conflict rule = **board-wins** on the same row between two syncs. Scouting cols
+  `has_resume`/`has_cover_letter` are derived by statting
+  `applications/<application_folder>/{resume,cover-letter}.docx`. Note: the sync now **writes**
+  a sibling repo (needs `python3` + `openpyxl` locally), and board edits reach Job Hunter /
+  the 4317 dashboard / `tracker.xlsx` only after a sync.
+- **Doc downloads (migration `0019`)**: the Resume/Cover-letter badges are **download
+  buttons**. The sync uploads each tailored job's
   `applications/<folder>/{resume,cover-letter}.{docx,pdf}` into the **private `job-docs`
-  storage bucket** (`job-docs/<external_id>/<file>`, service-role upload; skips files whose
-  remote `updated_at` ≥ local mtime; "N docs uploaded" in the summary). Reads are RLS-gated on
+  bucket** (`job-docs/<external_id>/<file>`, service-role upload; skips files whose remote
+  `updated_at` ≥ local mtime; "N docs uploaded" in the summary). Reads are RLS-gated on
   `storage.objects` via `public.is_allowed_user()` — deliberate, because the **guest job board
   shares this Supabase project** and must not see Rob's docs. `getJobDocUrl` in
   `app/(app)/jobs/actions.ts` mints a 60s signed URL (`download:` sets content-disposition);
   the client clicks a transient `<a>`. Docs appear on the deployed board only after a local
   sync has uploaded them.
-- **Lint hygiene (react-hooks v6 / compiler rules):** the mount-guard idiom
-  (`useState(false)` + `useEffect(() => setMounted(true))`) is replaced by
-  `lib/hooks/use-mounted.ts` (`useSyncExternalStore`, no state-in-effect). Intentional
-  timer/fetch/dialog-seed effects carry a targeted
-  `// eslint-disable-next-line react-hooks/set-state-in-effect` (house style, same as the
-  existing `exhaustive-deps` disables). `npm run lint` is green.
-- **instascrape transcripts (read-only mirror):** the local instascrape app's
-  `data/assets/research/<shortcode>/transcript.txt` files are mirrored into a `transcripts` table
-  (migration `0012`) by the same `npm run sync` (reads `<SYNC_INSTASCRAPE_DIR or
-  CODE_ROOT/instascrape>/data/assets/research/*`; mirror reconcile by `external_id` = the reel
-  shortcode; `content` is the change signal). Surfaced **read-only** at **`/transcripts`** (list →
-  `app/(app)/transcripts/page.tsx`) and **`/transcripts/[id]`** (viewer; `(audio)`/`(screen)` lines
-  parsed + styled in `components/transcripts/transcript-view.tsx`). `Transcript` type in
-  `lib/types.ts`. No write-back. Same local-only sync model as jobs (Vercel can't read disk).
-- **instascrape prompts (mirror + soft-delete):** verbatim copy-paste prompts extracted by
-  instascrape (`<shortcode>/prompts.json`) are mirrored into a `prompts` table (migration `0016`,
-  MANY per post, key `external_id="<shortcode>#<index>"`) by `npm run sync`; surfaced at
-  **`/prompts`** (`app/(app)/prompts/page.tsx` + `components/prompts/prompts-browser.tsx`:
-  category/tool/tag filters + search + per-prompt Copy). **Delete = soft-delete:** a `hidden`
-  boolean (migration `0017`) flagged via Server Actions in `app/(app)/prompts/actions.ts`
-  (`hidePrompt`/`restorePrompt`); the browser filters it out and has a **"Show hidden (N)" →
-  Restore** view. `hidden` **survives the sync** — the mirror keeps the row (so it's never
-  re-inserted) and its update path writes only mirrored columns, never `hidden`; so **the sync
-  needed no changes**. Apply `0017` before deploying (the page selects `hidden`; absent column ⇒
-  empty list), same as the `0015`/`0016` episodes.
-- Next: **owner infra only** — optional GitHub/Steam tokens; add `SUPABASE_SERVICE_ROLE_KEY` to run
-  the disk sync (see `BACKLOG.md`). No further code phases planned; do **not** start the SSO
-  exploration without the user's go-ahead.
 
-The user provisions Supabase project, Google OAuth, env vars, and applies the migration (§9).
-`npm run build` and the preview MCP both pass against the current code.
+## Transcripts & prompts (instascrape mirrors)
+
+- **Transcripts (read-only, migration `0012`)**: instascrape's
+  `data/assets/research/<shortcode>/transcript.txt` → `transcripts` table (reads
+  `<SYNC_INSTASCRAPE_DIR or CODE_ROOT/instascrape>/data/assets/research/*`; reconcile by
+  `external_id` = the reel shortcode; `content` is the change signal). Surfaced at
+  **`/transcripts`** (list) + **`/transcripts/[id]`** (viewer; `(audio)`/`(screen)` lines
+  parsed + styled in `components/transcripts/transcript-view.tsx`). `Transcript` type in
+  `lib/types.ts`. No write-back; same local-only sync model as jobs.
+- **Prompts (mirror + soft-delete, migrations `0016`/`0017`)**: instascrape's
+  `<shortcode>/prompts.json` → `prompts` table (MANY per post, key
+  `external_id="<shortcode>#<index>"`). Surfaced at **`/prompts`**
+  (`components/prompts/prompts-browser.tsx`: category/tool/tag filters + search + per-prompt
+  Copy). **Delete = soft-delete**: a `hidden` boolean flagged via Server Actions in
+  `app/(app)/prompts/actions.ts` (`hidePrompt`/`restorePrompt`); the browser filters it out
+  and offers a "Show hidden (N)" → Restore view. `hidden` **survives the sync** — the mirror
+  keeps the row (never re-inserted) and its update path writes only mirrored columns, never
+  `hidden`, so the sync needed no changes.
+
+## Code health
+
+- **Lint (react-hooks v6 / compiler rules)**: the mount-guard idiom (`useState(false)` +
+  `useEffect(() => setMounted(true))`) is replaced by `lib/hooks/use-mounted.ts`
+  (`useSyncExternalStore`, no state-in-effect). Intentional timer/fetch/dialog-seed effects
+  carry a targeted `// eslint-disable-next-line react-hooks/set-state-in-effect` (house
+  style, same as the existing `exhaustive-deps` disables). `npm run lint` is green.
