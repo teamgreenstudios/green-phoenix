@@ -162,9 +162,10 @@ episodes).
   `updated_at` ≥ local mtime; "N docs uploaded" in the summary). Reads are RLS-gated on
   `storage.objects` via `public.is_allowed_user()` — deliberate, because the **guest job board
   shares this Supabase project** and must not see Rob's docs. `getJobDocUrl` in
-  `app/(app)/jobs/actions.ts` mints a 60s signed URL (`download:` sets content-disposition);
-  the client clicks a transient `<a>`. Docs appear on the deployed board only after a local
-  sync has uploaded them.
+  `app/(app)/jobs/actions.ts` mints a 60s signed URL (`download:` sets content-disposition —
+  the saved filename is `Robert-Green-Resume.docx`/`Robert-Green-Cover-Letter.docx`, the
+  Firstname-Lastname convention ATSs expect, not the internal JH id); the client clicks a
+  transient `<a>`. Docs appear on the deployed board only after a local sync has uploaded them.
 
 ## Transcripts & prompts (instascrape mirrors)
 

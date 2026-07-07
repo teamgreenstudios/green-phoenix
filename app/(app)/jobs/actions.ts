@@ -70,6 +70,12 @@ const JOB_DOC_FILES = {
   resume: "resume.docx",
   cover: "cover-letter.docx",
 } as const;
+// What the browser saves the file as — this is the filename the ATS receives, so it
+// follows the Firstname-Lastname convention, not the internal JH id.
+const JOB_DOC_DOWNLOAD_NAMES = {
+  resume: "Robert-Green-Resume.docx",
+  cover: "Robert-Green-Cover-Letter.docx",
+} as const;
 export type JobDocKind = keyof typeof JOB_DOC_FILES;
 
 /** Signed download URL (60s) for a tailored job's resume/cover letter. */
@@ -85,7 +91,7 @@ export async function getJobDocUrl(
     const { data, error } = await supabase.storage
       .from("job-docs")
       .createSignedUrl(`${externalId}/${file}`, 60, {
-        download: `${externalId}-${file}`,
+        download: JOB_DOC_DOWNLOAD_NAMES[kind],
       });
     if (error) return { error: error.message };
     return { url: data.signedUrl };
