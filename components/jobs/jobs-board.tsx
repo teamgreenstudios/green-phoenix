@@ -115,19 +115,26 @@ export function JobsBoard({ jobs: initialJobs }: { jobs: Job[] }) {
     });
   }
 
-  // "Remove from the New list" → mark Passed (terminal): drops off the active
-  // board into the collapsible Archived row, but stays in jobs.json for history.
+  // Remove works at any step: pre-application stages archive as Passed (chose not to
+  // pursue); in-flight applications archive as Rejected (closest terminal for a dead
+  // application). Either way the job drops into the collapsible Archived row and stays
+  // in jobs.json for history.
   function dismiss(job: Job) {
+    const target: JobStatus = ["Applied", "Interviewing", "Offer"].includes(
+      job.status,
+    )
+      ? "Rejected"
+      : "Passed";
     const prev = jobs;
     setJobs((js) =>
-      js.map((j) => (j.id === job.id ? { ...j, status: "Passed" } : j)),
+      js.map((j) => (j.id === job.id ? { ...j, status: target } : j)),
     );
-    setJobStatus(job.id, "Passed").then((res) => {
+    setJobStatus(job.id, target).then((res) => {
       if (res.error) {
         setJobs(prev);
         toast.error(res.error);
       } else {
-        toast.success(`Removed ${job.external_id}`);
+        toast.success(`Removed ${job.external_id} (${target})`);
       }
     });
   }
@@ -284,11 +291,25 @@ function JobCard({
             {job.external_id}
           </span>
         </div>
-        <span
-          className={`rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${SCORE_TIER_CLASS[tier]}`}
-        >
-          {job.match_score ?? "—"}
-        </span>
+        <div className="flex items-center gap-1">
+          <span
+            className={`rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${SCORE_TIER_CLASS[tier]}`}
+          >
+            {job.match_score ?? "—"}
+          </span>
+          {/* Universal remove — available at every active step, not just New. */}
+          {!TERMINAL.includes(job.status) && (
+            <button
+              type="button"
+              title="Remove from pipeline"
+              aria-label={`Remove ${job.external_id} from pipeline`}
+              className="rounded p-0.5 text-muted-foreground/50 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
+              onClick={() => onDismiss(job)}
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-1 text-sm font-medium leading-snug">
@@ -345,8 +366,9 @@ function JobCard({
         </div>
       )}
 
-      {/* Actions are per-column: triage the New pile (accept / dismiss), then
-       * tailor + apply while a job is Interested or Tailored. Applied+ is drag-only. */}
+      {/* Column-specific actions: triage the New pile (accept / dismiss), then
+       * tailor + apply while a job is Interested or Tailored. Every active card also
+       * has the header X (universal remove); Applied+ is otherwise drag-only. */}
       {job.status === "New" && (
         <div className="mt-2 flex items-center gap-1">
           <Button
